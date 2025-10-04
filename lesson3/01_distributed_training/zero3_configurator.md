@@ -6,10 +6,11 @@
 - 学会在配置文件中开启 CPU offload 与混合精度选项。
 
 ## 背景原理
-ZeRO Stage 3 将模型参数、梯度与优化器状态分片到不同 GPU，从而将内存复杂度从 $\mathcal{O}(N)$ 降低到 $\mathcal{O}(N/k)$，其中 $k$ 为设备数。全局批量计算公式：
-$$
+ZeRO Stage 3 将模型参数、梯度与优化器状态分片到不同 GPU，从而将内存复杂度从 \(\mathcal{O}(N)\) 降低到 \(\mathcal{O}(N/k)\)，其中 \(k\) 为设备数。全局批量计算公式：
+\[
 \text{Batch}_{\text{global}} = \text{Batch}_{\text{micro}} \times \text{Acc}_{\text{grad}} \times \text{Devices}.
-$$
+\]
+
 ## 代码结构解析
 - `ZeroConfig`：封装 micro batch、梯度累积、ZeRO stage、offload、bf16 等参数。
 - `build_config`：生成符合 DeepSpeed 要求的字典，包含 `zero_optimization`、`bf16`、`gradient_clipping` 等字段。

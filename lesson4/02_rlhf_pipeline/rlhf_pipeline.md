@@ -6,15 +6,15 @@
 - 学会在教学中使用 `--dry-run` 快速演示流程，或加载真实数据执行全量训练。
 
 ## 背景原理
-1. **奖励模型训练**：基于偏好对 $(x, y^+, y^-)$，优化目标为：
-$$
-\mathcal{L}_{\text{RM}} = -\log \sigma(r_{\theta}(x, y^+) - r_{\theta}(x, y^-)).
-$$
+1. **奖励模型训练**：基于偏好对 \((x, y^+, y^-)\)，优化目标为：
+   \[
+   \mathcal{L}_{\text{RM}} = -\log \sigma(r_{\theta}(x, y^+) - r_{\theta}(x, y^-)).
+   \]
 2. **PPO 策略更新**：在 KL 约束下最大化奖励：
-$$
-\max_{\pi} \mathbb{E}_{y \sim \pi}[r(y)] - \beta \mathrm{KL}(\pi \Vert \pi_{\text{ref}}).
-$$
-通过价值头估计优势函数，迭代更新策略。
+   \[
+   \max_{\pi} \mathbb{E}_{y \sim \pi}[r(y)] - \beta \mathrm{KL}(\pi \Vert \pi_{\text{ref}}).
+   \]
+   通过价值头估计优势函数，迭代更新策略。
 
 ## 代码结构解析
 - `build_synthetic_preference_dataset`：生成教学用偏好对。

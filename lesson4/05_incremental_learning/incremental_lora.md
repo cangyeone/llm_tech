@@ -9,9 +9,10 @@
 当模型先后接触不同领域数据时，易出现灾难性遗忘。常见缓解策略包括：
 1. **样本重放**：从旧领域抽取部分样本与新数据混合训练。
 2. **知识蒸馏/KL 正则**：保持新模型输出与旧模型一致，损失形式：
-$$
-\mathcal{L}_{\text{KL}} = \lambda \cdot \mathrm{KL}\big(\pi_{\text{new}}(y|x) \Vert \pi_{\text{old}}(y|x)\big).
-$$
+   \[
+   \mathcal{L}_{\text{KL}} = \lambda \cdot \mathrm{KL}\big(\pi_{\text{new}}(y|x) \Vert \pi_{\text{old}}(y|x)\big).
+   \]
+
 ## 代码结构解析
 - `IncrementalArgs`：配置模型名称、领域数据集、LoRA 秩、重放比例等。
 - `load_qa_dataset`：从公开数据集中抽样并格式化为问答对。

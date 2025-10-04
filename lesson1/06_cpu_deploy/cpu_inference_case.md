@@ -6,11 +6,11 @@
 - 掌握常见的 CPU 加速策略，如 `torch.compile`、ONNX Runtime 与低比特量化。
 
 ## 背景原理
-推理延迟近似与模型参数量、层数和算力成正比。对于序列长度 $L$ 与隐藏维度 $d$，单层注意力复杂度约为 $\mathcal{O}(L^2 d)$。轻量模型通过降低 $d$ 与层数，使得 CPU 场景中延迟显著降低。Tokens per second 指标计算为：
-$$
+推理延迟近似与模型参数量、层数和算力成正比。对于序列长度 \(L\) 与隐藏维度 \(d\)，单层注意力复杂度约为 \(\mathcal{O}(L^2 d)\)。轻量模型通过降低 \(d\) 与层数，使得 CPU 场景中延迟显著降低。Tokens per second 指标计算为：
+\[
 \text{TPS} = \frac{L \times N_{\text{steps}}}{T_{\text{total}}},
-$$
-其中 $T_{\text{total}}$ 为总耗时。
+\]
+其中 \(T_{\text{total}}\) 为总耗时。
 
 ## 代码结构解析
 - `DeployCandidate` 与 `CANDIDATES`：定义比较的模型规格（0.5B 与 3B）。

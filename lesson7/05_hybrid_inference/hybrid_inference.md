@@ -7,13 +7,13 @@
 
 ## 背景原理
 在生产环境中，检索结果质量可能波动。可根据检索得分决定：
-$$
+\[
 \text{mode} = \begin{cases}
 \text{RAG融合}, & \bar{s} \geq \tau \\
 \text{模型fallback}, & \bar{s} < \tau
 \end{cases}
-$$
-其中 $\bar{s}$ 为检索得分平均值，$\tau$ 为融合阈值。若完全无检索结果，则直接使用微调模型回答。
+\]
+其中 \(\bar{s}\) 为检索得分平均值，\(\tau\) 为融合阈值。若完全无检索结果，则直接使用微调模型回答。
 
 ## 代码结构解析
 - `FineTunedModel`：模拟加载好的微调模型，提供 `generate` 接口。
