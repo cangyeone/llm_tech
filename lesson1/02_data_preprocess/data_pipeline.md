@@ -6,10 +6,10 @@
 - 学会将清洗后的样本导出为 JSONL 以适配指令微调。
 
 ## 背景原理
-在指令微调中，我们通常将原始文档 \(d\) 通过预处理函数 \(f(\cdot)\) 映射为结构化样本 \((\text{instruction}, \text{input}, \text{output})\)。整个流程可抽象为：
-\[
+在指令微调中，我们通常将原始文档 $d$ 通过预处理函数 $f(\cdot)$ 映射为结构化样本 $(\text{instruction}, \text{input}, \text{output})$。整个流程可抽象为：
+$$
 (\text{instruction}, \text{input}, \text{output}) = f\big( \text{clean}(d), \text{template} \big),
-\]
+$$
 其中 `clean` 函数负责消除噪声，`template` 用于构建上下文提示，最终生成模型可学习的对齐对话对。合理的模板能提升模型在下游任务上的泛化能力。
 
 ## 代码结构解析
