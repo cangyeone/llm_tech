@@ -2,15 +2,15 @@
 
 ## 学习目标
 - 理解 LoRA（Low-Rank Adaptation）的核心思想和数学表达式。
-- 学会通过随机矩阵模拟不同秩 \(r\) 对重建误差的影响。
+- 学会通过随机矩阵模拟不同秩 $r$ 对重建误差的影响。
 - 掌握如何在 Transformer 线性层插入 LoRA 适配器的伪代码实现。
 
 ## 背景原理
-LoRA 将原始权重 \(W_0 \in \mathbb{R}^{d \times k}\) 进行低秩增量调整：
-\[
+LoRA 将原始权重 $W_0 \in \mathbb{R}^{d \times k}$ 进行低秩增量调整：
+$$
 W = W_0 + \Delta W, \quad \Delta W = B A, \quad A \in \mathbb{R}^{r \times k},\ B \in \mathbb{R}^{d \times r},
-\]
-并通过缩放因子 \(\alpha\) 控制更新幅度。通过限制秩 \(r \ll \min(d, k)\)，LoRA 可显著降低可训练参数量，同时保持表达能力。
+$$
+并通过缩放因子 $\alpha$ 控制更新幅度。通过限制秩 $r \ll \min(d, k)$，LoRA 可显著降低可训练参数量，同时保持表达能力。
 
 ## 代码结构解析
 - `LoraConfig`：配置隐层维度、候选秩 `rank_candidates` 与缩放参数 `alpha`。
@@ -25,5 +25,5 @@ W = W_0 + \Delta W, \quad \Delta W = B A, \quad A \in \mathbb{R}^{r \times k},\ 
 
 ## 深入讨论
 - 尝试将 `simulate_lora` 中的随机权重替换为真实模型层权重，对比误差随秩变化的趋势。
-- 结合缩放 \(\alpha\) 与学习率设计，分析 LoRA 更新幅度如何影响训练稳定性。
+- 结合缩放 $\alpha$ 与学习率设计，分析 LoRA 更新幅度如何影响训练稳定性。
 - 如果要应用到注意力模块的 Query、Value 投影，该脚本需要做哪些参数维度上的调整？

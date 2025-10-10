@@ -7,10 +7,12 @@
 
 ## 背景原理
 DeepSpeed Inference 通过融合算子与张量分片将大模型拆分到多 GPU 上，配合 INT8/INT4 量化可以显著降低显存需求。推理吞吐可表示为：
-\[
+
+$$
 \text{Throughput} = \frac{N_{\text{tokens}}}{T_{\text{latency}}},
-\]
-其中 \(N_{\text{tokens}}\) 是生成的 token 数，\(T_{\text{latency}}\) 为实际耗时。
+$$
+
+其中 $N_{\text{tokens}}$ 是生成的 token 数，$T_{\text{latency}}$ 为实际耗时。
 
 ## 代码结构解析
 - `DeployConfig`：定义模型名称、TP/PP 大小、最大生成长度等。

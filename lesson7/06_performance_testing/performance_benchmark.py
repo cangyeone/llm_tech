@@ -1,109 +1,119 @@
-"""课程实验 6：检索与生成性能压测
-
-本脚本通过模拟检索延迟与生成耗时，演示如何统计平均值、分位数与
-瓶颈提示，帮助学员理解性能调优的关注点。
-"""
-from __future__ import annotations
-
-import argparse
-import json
-import random
-import statistics
 import time
-from dataclasses import dataclass
-from typing import Dict, List
+import random
+import numpy as np
+import matplotlib.pyplot as plt
+from sentence_transformers import SentenceTransformer
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from sklearn.metrics.pairwise import cosine_similarity
 
+# ===== 1. 初始化模型 =====
+# 加载 Sentence-BERT 模型用于检索
+sbert_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
 
-@dataclass
-class BenchmarkConfig:
-    """压测配置：包括查询数量、检索与生成延迟范围。"""
+# 加载生成模型（例如 Qwen3 或其他）
+model_name = "Qwen/Qwen3-0.6b"  # 使用一个示例模型
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
 
-    queries: int
-    retrieval_ms: List[int]
-    generation_ms: List[int]
+# ===== 2. 模拟的知识库 =====
+knowledge_base = {
+    "What is RAG?": "Retrieval-Augmented Generation (RAG) is a model architecture designed to improve the performance of text generation tasks.",
+    "How does RAG improve text generation?": "RAG combines pre-trained generative models with retrieval mechanisms to improve text generation.",
+    "What is the goal of RAG?": "The goal of RAG is to leverage pre-trained models while allowing for the incorporation of task-specific knowledge from external sources."
+}
 
+# ===== 3. 文本预处理函数 =====
+def preprocess(text):
+    return text.lower().translate(str.maketrans('', '', string.punctuation)).split()
 
-@dataclass
-class BenchmarkResult:
-    """压测结果汇总，用于输出统计指标。"""
+# ===== 4. 检索阶段 =====
+def retrieve_answer(query, knowledge_base):
+    # 将知识库问题编码为向量
+    corpus_embeddings = sbert_model.encode(list(knowledge_base.keys()))
+    
+    # 对用户查询进行编码
+    query_embedding = sbert_model.encode([query])
+    
+    # 计算余弦相似度
+    cosine_similarities = cosine_similarity(query_embedding, corpus_embeddings)
+    
+    # 找到相似度最高的文档
+    best_match_index = cosine_similarities.argmax()
+    best_match_question = list(knowledge_base.keys())[best_match_index]
+    best_match_answer = knowledge_base[best_match_question]
+    
+    return best_match_answer, cosine_similarities[0][best_match_index]
 
-    retrieval_times: List[float]
-    generation_times: List[float]
+# ===== 5. 生成阶段 =====
+def generate_answer(query, context):
+    inputs = tokenizer(query + " " + context, return_tensors="pt", truncation=True, padding=True, max_length=512)
+    outputs = model.generate(inputs['input_ids'], max_length=150)
+    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return answer
 
-    def summary(self) -> Dict[str, Dict[str, float]]:
-        return {
-            "retrieval": _statistics(self.retrieval_times),
-            "generation": _statistics(self.generation_times),
-        }
+# ===== 6. 性能压测：模拟多轮问答 =====
+def performance_test(queries, knowledge_base, threshold=0.7):
+    retrieval_times = []
+    generation_times = []
+    total_times = []
 
+    for query in queries:
+        # 1. 检索阶段
+        start_time = time.time()
+        retrieved_answer, similarity_score = retrieve_answer(query, knowledge_base)
+        retrieval_time = time.time() - start_time
+        
+        # 2. 生成阶段
+        start_time = time.time()
+        generated_answer = generate_answer(query, retrieved_answer)
+        generation_time = time.time() - start_time
 
-def _statistics(samples: List[float]) -> Dict[str, float]:
-    """计算平均值、P95 与最大值。"""
+        # 3. 记录每个阶段的时间
+        retrieval_times.append(retrieval_time)
+        generation_times.append(generation_time)
+        total_times.append(retrieval_time + generation_time)
+    
+    return retrieval_times, generation_times, total_times
 
-    if not samples:
-        return {"avg": 0.0, "p95": 0.0, "max": 0.0}
-    avg = statistics.fmean(samples)
-    sorted_samples = sorted(samples)
-    index_p95 = int(0.95 * (len(sorted_samples) - 1))
-    return {
-        "avg": avg,
-        "p95": sorted_samples[index_p95],
-        "max": max(sorted_samples),
-    }
+# ===== 7. 计算统计指标 =====
+def calculate_metrics(times):
+    avg_time = np.mean(times)
+    p95_time = np.percentile(times, 95)
+    max_time = np.max(times)
+    
+    return avg_time, p95_time, max_time
 
+# ===== 8. 绘制性能分布图 =====
+def plot_performance(times, title="Latency Distribution"):
+    plt.hist(times, bins=30, color='skyblue', edgecolor='black')
+    plt.title(title)
+    plt.xlabel('Time (seconds)')
+    plt.ylabel('Frequency')
+    plt.show()
 
-def simulate_latency(range_ms: List[int]) -> float:
-    """在给定区间内随机选择延迟，并使用 sleep 模拟耗时。"""
-
-    latency = random.uniform(range_ms[0], range_ms[1]) / 1000
-    time.sleep(latency / 10)  # 缩短真实等待时间，便于课堂演示
-    return latency
-
-
-def run_benchmark(config: BenchmarkConfig) -> BenchmarkResult:
-    """执行压测，分别记录检索与生成的延迟。"""
-
-    retrieval_times: List[float] = []
-    generation_times: List[float] = []
-    for _ in range(config.queries):
-        retrieval_times.append(simulate_latency(config.retrieval_ms))
-        generation_times.append(simulate_latency(config.generation_ms))
-    return BenchmarkResult(retrieval_times=retrieval_times, generation_times=generation_times)
-
-
-def diagnose(result: BenchmarkResult) -> str:
-    """根据结果判断主要瓶颈。"""
-
-    summary = result.summary()
-    retr = summary["retrieval"]
-    gen = summary["generation"]
-    if retr["avg"] > gen["avg"] * 1.2:
-        return "建议优化检索阶段，例如引入缓存或更高效的索引结构。"
-    if gen["avg"] > retr["avg"] * 1.2:
-        return "建议优化生成阶段，可通过模型量化或并行推理降耗。"
-    return "检索与生成耗时较为均衡，可综合优化或增加监控精度。"
-
-
-def parse_args() -> argparse.Namespace:
-    """命令行参数：配置压测规模与延迟区间。"""
-
-    parser = argparse.ArgumentParser(description="RAG 性能压测演示")
-    parser.add_argument("--queries", type=int, default=20, help="压测查询次数")
-    parser.add_argument("--retrieval", nargs=2, type=int, default=[80, 150], help="检索延迟范围（毫秒）")
-    parser.add_argument("--generation", nargs=2, type=int, default=[300, 600], help="生成延迟范围（毫秒）")
-    return parser.parse_args()
-
-
-def main() -> None:
-    """脚本入口：运行压测并输出统计信息。"""
-
-    args = parse_args()
-    config = BenchmarkConfig(queries=args.queries, retrieval_ms=args.retrieval, generation_ms=args.generation)
-    result = run_benchmark(config)
-    summary = result.summary()
-    print("压测结果：", json.dumps(summary, ensure_ascii=False, indent=2))
-    print("瓶颈诊断：", diagnose(result))
-
-
+# ===== 9. 执行性能压测 =====
 if __name__ == "__main__":
-    main()
+    # 模拟查询数据集
+    queries = [
+        "What is RAG?",
+        "How does RAG improve text generation?",
+        "What is the goal of RAG?",
+        "Explain the RAG system in detail.",
+        "How can I optimize RAG for performance?"
+    ]
+    
+    # 性能压测
+    retrieval_times, generation_times, total_times = performance_test(queries, knowledge_base)
+
+    # 计算统计指标
+    avg_retrieval_time, p95_retrieval_time, max_retrieval_time = calculate_metrics(retrieval_times)
+    avg_generation_time, p95_generation_time, max_generation_time = calculate_metrics(generation_times)
+    avg_total_time, p95_total_time, max_total_time = calculate_metrics(total_times)
+
+    # 输出统计指标
+    print(f"Retrieval Latency - Avg: {avg_retrieval_time:.4f}, P95: {p95_retrieval_time:.4f}, Max: {max_retrieval_time:.4f}")
+    print(f"Generation Latency - Avg: {avg_generation_time:.4f}, P95: {p95_generation_time:.4f}, Max: {max_generation_time:.4f}")
+    print(f"Total Latency - Avg: {avg_total_time:.4f}, P95: {p95_total_time:.4f}, Max: {max_total_time:.4f}")
+    
+    # 绘制性能分布图
+    plot_performance(total_times, "Total Latency Distribution")

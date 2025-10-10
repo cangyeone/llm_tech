@@ -6,10 +6,11 @@
 - 理解长上下文训练时的分词策略与梯度累积设置。
 
 ## 背景原理
-QLoRA 在基础模型上采用 INT4 量化并冻结原权重，仅训练 LoRA 增量 \(\Delta W\)。在梯度更新时，参数驻留在 4 bit 格式，通过 `bnb_4bit_compute_dtype` 指定的浮点精度执行反向传播。梯度累积实现有效批量：
-\[
+QLoRA 在基础模型上采用 INT4 量化并冻结原权重，仅训练 LoRA 增量 $\Delta W$。在梯度更新时，参数驻留在 4 bit 格式，通过 `bnb_4bit_compute_dtype` 指定的浮点精度执行反向传播。梯度累积实现有效批量：
+
+$$
 \text{Batch}_{\text{effective}} = \text{Batch}_{\text{device}} \times \text{Acc}_{\text{grad}} \times \text{Devices}.
-\]
+$$
 
 ## 代码结构解析
 - `QLoRAConfig` 与 `parse_args`：接收数据路径、模型名称、学习率、步数等参数。

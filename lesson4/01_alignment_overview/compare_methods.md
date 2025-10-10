@@ -6,11 +6,13 @@
 - 理解不同方法在实现复杂度、样本效率、算力需求等维度的差异。
 
 ## 背景原理
-- **RLHF**：通过奖励模型与强化学习（常用 PPO）最大化期望奖励：\(\max_{\pi} \mathbb{E}_{y \sim \pi} [r(y)]\)。
+- **RLHF**：通过奖励模型与强化学习（常用 PPO）最大化期望奖励：$\max_{\pi} \mathbb{E}_{y \sim \pi} [r(y)]$。
 - **DPO**：利用偏好对直接优化策略，损失函数形式：
-  \[
-  \mathcal{L}_{\text{DPO}} = -\log \sigma\left(\beta [\log \pi_{\theta}(y^+|x) - \log \pi_{\theta}(y^-|x)] - [\log \pi_{\text{ref}}(y^+|x) - \log \pi_{\text{ref}}(y^-|x)]\right).
-  \]
+
+$$
+\mathcal{L}_{\text{DPO}} = -\log \sigma\left(\beta [\log \pi_{\theta}(y^+|x) - \log \pi_{\theta}(y^-|x)] - [\log \pi_{\text{ref}}(y^+|x) - \log \pi_{\text{ref}}(y^-|x)]\right).
+$$
+
 - **KTO**：在偏好缺失场景下，通过加权损失统一处理正负反馈，兼容“无偏好”标注。
 
 ## 代码结构解析
@@ -26,5 +28,5 @@
 
 ## 延伸思考
 - RLHF 的奖励模型可以使用偏好数据训练，也可引入 AI 反馈，如何影响 `score_profile`？
-- DPO 在低质量偏好对上可能过拟合，是否需要温度参数 \(\beta\) 调整？
+- DPO 在低质量偏好对上可能过拟合，是否需要温度参数 $\beta$ 调整？
 - KTO 兼容无偏好样本，对标注流程有哪些启发？

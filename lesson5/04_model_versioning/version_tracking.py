@@ -1,104 +1,120 @@
-"""课程实验 4：模型版本管理
-
-演示如何在对齐实验中结合 MLflow 与 Weights & Biases 记录模型、
-参数与指标，支持离线缓存和本地追踪，便于团队协作审计。
+# -*- coding: utf-8 -*-
 """
-from __future__ import annotations
+mlflow ui --backend-store-uri sqlite:///mlruns.db --port 5000
+# 浏览器打开 http://127.0.0.1:5000
 
-import argparse
-from contextlib import contextmanager
-from dataclasses import dataclass
-from typing import Dict
-
+运行后在 ./wandb_offline/ 看到离线目录（可拷贝、打包）。
+若有线上 W&B 项目，切到在线：
+export WANDB_MODE=online
+wandb login   # 输入你的 API Key
+# 再次运行脚本即可自动同步
+"""
+import os, time, random
+import torch, torch.nn as nn, torch.optim as optim
 import mlflow
+import mlflow.pytorch
 import wandb
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
-DEFAULT_MODEL = "Qwen/Qwen3-1.8B-Instruct"
+# ===== 推荐：代码内兜底离线配置（也可用环境变量） =====
+os.environ.setdefault("MLFLOW_TRACKING_URI", "sqlite:///mlruns.db")
+os.environ.setdefault("WANDB_MODE", "offline")
+os.environ.setdefault("WANDB_DIR", "./wandb_offline")
 
+# ----- 伪数据与小模型（演示用）-----
+class TinyNet(nn.Module):
+    def __init__(self, in_dim=10, out_dim=2):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(in_dim, 32), nn.ReLU(), nn.Linear(32, out_dim))
+    def forward(self, x): return self.net(x)
 
-@dataclass
-class TrackingArguments:
-    """版本管理相关参数。"""
+def fake_batch(bs=32, in_dim=10, num_classes=2):
+    x = torch.randn(bs, in_dim)
+    y = torch.randint(0, num_classes, (bs,))
+    return x, y
 
-    model_name: str = DEFAULT_MODEL
-    experiment_name: str = "qwen-alignment"
-    mlflow_uri: str = "file:./mlruns"
-    wandb_mode: str = "offline"
-    wandb_project: str = "qwen-alignment"
-    sample_prompt: str = "请为企业客服写一段友好开场白。"
+# ====== 超参 ======
+params = dict(
+    project="alignment-demo",
+    run_name=f"tiny_dpo_probe_{int(time.time())}",
+    lr=5e-4,
+    epochs=3,
+    batch_size=32,
+    in_dim=10,
+    num_classes=2,
+    note="示例：同时把指标记到 MLflow 与 W&B；并将模型注册为版本",
+)
 
+# ====== 1) 初始化 W&B 与 MLflow ======
+wandb.init(project=params["project"], name=params["run_name"], config=params, mode=os.getenv("WANDB_MODE", "offline"))
+mlflow.set_experiment(params["project"])
 
-@contextmanager
-def mlflow_run_context(experiment_name: str):
-    """MLflow 上下文管理器，确保自动结束。"""
+with mlflow.start_run(run_name=params["run_name"]) as run:
+    run_id = run.info.run_id
 
-    mlflow.set_experiment(experiment_name)
-    with mlflow.start_run() as run:
-        yield run
+    # 记录超参
+    mlflow.log_params({k: v for k, v in params.items() if k not in ["project", "run_name", "note"]})
+    wandb.config.update(params)
 
+    # ====== 2) 构建模型与优化器 ======
+    model = TinyNet(in_dim=params["in_dim"], out_dim=params["num_classes"])
+    opt = optim.AdamW(model.parameters(), lr=params["lr"])
+    loss_fn = nn.CrossEntropyLoss()
 
-def init_wandb(project: str, mode: str) -> None:
-    """初始化 WandB，支持离线模式。"""
+    # ====== 3) 训练 & 同步记录指标 ======
+    global_step = 0
+    for epoch in range(1, params["epochs"] + 1):
+        model.train()
+        epoch_loss, epoch_acc = 0.0, 0.0
+        steps = 50  # 演示：每个 epoch 跑 50 个 step
 
-    wandb.init(project=project, mode=mode, config={"course": "lesson5", "topic": "versioning"})
+        for _ in range(steps):
+            x, y = fake_batch(params["batch_size"], params["in_dim"], params["num_classes"])
+            logits = model(x)
+            loss = loss_fn(logits, y)
 
+            opt.zero_grad(); loss.backward(); opt.step()
 
-def sample_generation(model_name: str, prompt: str) -> Dict[str, str]:
-    """生成示例回答，同时记录模型参数量。"""
+            with torch.no_grad():
+                acc = (logits.argmax(dim=-1) == y).float().mean().item()
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+            epoch_loss += loss.item()
+            epoch_acc  += acc
+            global_step += 1
 
-    model = AutoModelForCausalLM.from_pretrained(model_name)
-    params = sum(p.numel() for p in model.parameters())
-    inputs = tokenizer(prompt, return_tensors="pt")
-    outputs = model.generate(**inputs, max_new_tokens=64)
-    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return {"answer": answer, "params": params}
+            # —— 每步日志（可选，演示细粒度记录）——
+            mlflow.log_metrics({"train/loss": loss.item(), "train/acc": acc}, step=global_step)
+            wandb.log({"train/loss": loss.item(), "train/acc": acc, "step": global_step})
 
+        # —— 每个 epoch 的汇总指标 —— 
+        avg_loss = epoch_loss / steps
+        avg_acc  = epoch_acc  / steps
+        mlflow.log_metrics({"epoch/loss": avg_loss, "epoch/acc": avg_acc}, step=epoch)
+        wandb.log({"epoch/loss": avg_loss, "epoch/acc": avg_acc, "epoch": epoch})
 
-def log_metrics(result: Dict[str, str | int | float]) -> None:
-    """同时向 MLflow 与 WandB 写入指标。"""
+        # —— 记录一个“示例输出”到两边（可换成文本/图片/表格）——
+        sample_x, _ = fake_batch(1, params["in_dim"], params["num_classes"])
+        sample_logits = model(sample_x)[0].tolist()
+        sample_note = {"example/logits": sample_logits, "epoch": epoch}
+        mlflow.log_dict(sample_note, f"examples/epoch_{epoch}.json")
+        wandb.log(sample_note)
 
-    mlflow.log_metrics({"response_length": len(result["answer"])})
-    mlflow.log_param("model_params", result["params"])
-    wandb.log({"response_length": len(result["answer"]), "model_params": result["params"]})
+    # ====== 4) 保存与登记模型 ======
+    # 保存到当前 run 的 artifacts
+    mlflow.pytorch.log_model(model, artifact_path="model")
+    # 注册为“模型版本”：需要后端使用 DB（如上设置 sqlite:///mlruns.db）
+    model_uri = f"runs:/{run_id}/model"
+    registered_model_name = "tiny_alignment_model"
 
+    print(f"Registering model from {model_uri} ...")
+    mv = mlflow.register_model(model_uri=model_uri, name=registered_model_name)
+    print("Registered:", mv.name, "version:", mv.version)
 
-def parse_args() -> TrackingArguments:
-    """解析命令行参数。"""
+    # 可选：打个“阶段”标签（Staging/Production）
+    # from mlflow.tracking import MlflowClient
+    # client = MlflowClient()
+    # client.transition_model_version_stage(name=registered_model_name, version=mv.version, stage="Staging")
 
-    parser = argparse.ArgumentParser(description="模型版本管理实验")
-    parser.add_argument("--model", type=str, default=DEFAULT_MODEL)
-    parser.add_argument("--experiment", type=str, default="qwen-alignment")
-    parser.add_argument("--mlflow-uri", type=str, default="file:./mlruns")
-    parser.add_argument("--wandb-mode", type=str, default="offline")
-    parser.add_argument("--wandb-project", type=str, default="qwen-alignment")
-    parser.add_argument("--prompt", type=str, default="请为企业客服写一段友好开场白。")
-    parsed = parser.parse_args()
-    return TrackingArguments(
-        model_name=parsed.model,
-        experiment_name=parsed.experiment,
-        mlflow_uri=parsed.mlflow_uri,
-        wandb_mode=parsed.wandb_mode,
-        wandb_project=parsed.wandb_project,
-        sample_prompt=parsed.prompt,
-    )
-
-
-def main() -> None:
-    args = parse_args()
-    mlflow.set_tracking_uri(args.mlflow_uri)
-    with mlflow_run_context(args.experiment_name):
-        init_wandb(args.wandb_project, args.wandb_mode)
-        result = sample_generation(args.model_name, args.sample_prompt)
-        log_metrics(result)
-        wandb.summary["sample_answer"] = result["answer"]
-        wandb.finish()
-        print("版本追踪完成，可在本地 UI 查看记录。")
-
-
-if __name__ == "__main__":
-    main()
+    # 记录一些 run-level 文本/标签
+    mlflow.set_tag("note", params["note"])
+    wandb.summary["final/acc"] = avg_acc
+    print("Done. Run ID:", run_id)

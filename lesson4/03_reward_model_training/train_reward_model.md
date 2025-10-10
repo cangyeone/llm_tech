@@ -6,10 +6,12 @@
 - 学会自定义 `Trainer` 的损失函数，以成对比较形式优化模型。
 
 ## 背景原理
-奖励模型旨在学习偏好函数 \(r_{\theta}(x, y)\)，对同一 prompt 的两个回答进行排序。训练目标常采用 pairwise log-sigmoid 损失：
-\[
+奖励模型旨在学习偏好函数 $r_{\theta}(x, y)$，对同一 prompt 的两个回答进行排序。训练目标常采用 pairwise log-sigmoid 损失：
+
+$$
 \mathcal{L} = -\log \sigma\big(r_{\theta}(x, y^+) - r_{\theta}(x, y^-)\big).
-\]
+$$
+
 评估时可以使用 Kendall Tau 相关系数衡量预测排序与真实偏好的一致性。
 
 ## 代码结构解析

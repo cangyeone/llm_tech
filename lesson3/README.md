@@ -22,3 +22,99 @@
 6. `06_vertical_case/domain_finetune_case.py` — 文档摘要场景的垂直领域微调案例。
 
 根据硬件资源适当调整配置文件中的批大小与并行策略。部分脚本使用伪造数据用于课堂演示。
+
+## 基础教程 
+```bash 
+# 纯 GPU ZeRO-3
+deepspeed --num_gpus=8 train.py \
+  --model_name gpt2 \
+  --deepspeed ds_zero3.json \
+  --output_dir outputs_zero3 \
+  --per_device_train_batch_size 1 \
+  --gradient_accumulation_steps 8 \
+  --num_train_epochs 1 \
+  --fp16 \
+  --grad_ckpt
+```
+```bash
+# ZeRO-3 + CPU Offload（更省显存）
+deepspeed --num_gpus=8 train.py \
+  --model_name gpt2 \
+  --deepspeed ds_zero3_offload.json \
+  --output_dir outputs_zero3_offload \
+  --per_device_train_batch_size 1 \
+  --gradient_accumulation_steps 16 \
+  --num_train_epochs 1 \
+  --fp16 \
+  --grad_ckpt
+``` 
+
+
+主节点执行：
+```bash
+export MASTER_ADDR=10.0.0.10   # 主节点 IP/主机名
+export MASTER_PORT=29500
+export NNODES=2
+export GPUS_PER_NODE=8
+export NODE_RANK=0
+deepspeed --master_addr $MASTER_ADDR --master_port $MASTER_PORT \
+  --num_nodes $NNODES --num_gpus $GPUS_PER_NODE \
+  train.py --deepspeed ds_zero3.json \
+  --model_name gpt2 \
+  --output_dir /shared/outputs_zero3 \
+  --per_device_train_batch_size 1 \
+  --gradient_accumulation_steps 16 \
+  --num_train_epochs 1 \
+  --fp16 --grad_ckpt
+```
+
+从节点执行：
+```bash
+export MASTER_ADDR=10.0.0.10   # 主节点 IP/主机名
+export MASTER_PORT=29500
+export NNODES=2
+export GPUS_PER_NODE=8
+export NODE_RANK=1
+deepspeed --master_addr $MASTER_ADDR --master_port $MASTER_PORT \
+  --num_nodes $NNODES --num_gpus $GPUS_PER_NODE \
+  train.py --deepspeed ds_zero3.json \
+  --model_name gpt2 \
+  --output_dir /shared/outputs_zero3 \
+  --per_device_train_batch_size 1 \
+  --gradient_accumulation_steps 16 \
+  --num_train_epochs 1 \
+  --fp16 --grad_ckpt
+```
+
+
+或者直接执行
+```bash 
+deepspeed --hostfile=hostfile \
+  --launcher=openssh \
+  train.py \
+  --deepspeed ds_zero3.json \
+  --model_name gpt2 \
+  --output_dir /shared/outputs_zero3 \
+  --per_device_train_batch_size 1 \
+  --gradient_accumulation_steps 16 \
+  --num_train_epochs 1 \
+  --fp16 --grad_ckpt
+``` 
+
+```hostfile 
+# 主机名
+nodeA slots=8
+nodeB slots=8
+
+# FQDN
+gpu01.cluster.local slots=8
+gpu02.cluster.local slots=8
+
+# 直接用 IP
+10.0.0.11 slots=8
+10.0.0.12 slots=8
+
+# 指定用户
+user@10.0.0.11 slots=8
+user@gpu02.cluster.local slots=8
+```

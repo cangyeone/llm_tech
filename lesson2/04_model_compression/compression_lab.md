@@ -7,11 +7,13 @@
 
 ## 背景原理
 1. **结构化剪枝**：通过零化部分权重实现注意力头移除，使计算复杂度按比例降低。
-2. **知识蒸馏**：最小化学生输出 \(S(x)\) 与教师输出 \(T(x)\) 的距离：
-   \[
-   \mathcal{L}_{\text{KD}} = \lVert S(x) - T(x) \rVert_2^2.
-   \]
-3. **量化**：将浮点权重映射到整数区间 \([q_{\min}, q_{\max}]\)，通过缩放因子 \(\alpha\) 实现近似恢复：\(\hat{w} = \text{round}(w/\alpha) \cdot \alpha\)。
+2. **知识蒸馏**：最小化学生输出 $S(x)$ 与教师输出 $T(x)$ 的距离：
+
+$$
+\mathcal{L}_{\text{KD}} = \lVert S(x) - T(x) \rVert_2^2.
+$$
+
+3. **量化**：将浮点权重映射到整数区间 $[q_{\min}, q_{\max}]$，通过缩放因子 $\alpha$ 实现近似恢复：$\hat{w} = \text{round}(w/\alpha) \cdot \alpha$。
 
 ## 代码结构解析
 - `ToyTransformer`：简化的多头注意力 + 前馈网络，用于演示。

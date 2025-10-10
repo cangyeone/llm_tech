@@ -2,15 +2,17 @@
 
 ## 学习目标
 - 掌握在 `peft` 框架下为 ChatGLM 系列模型配置 LoRA 适配器的步骤。
-- 理解 LoRA 训练参数（秩 \(r\)、缩放 \(\alpha\)、dropout）的含义及取值建议。
+- 理解 LoRA 训练参数（秩 $r$、缩放 $\alpha$、dropout）的含义及取值建议。
 - 学会在 INT4 量化权重上继续执行低秩微调并保存增量权重。
 
 ## 背景原理
-LoRA 将原始权重冻结，仅更新增量部分 \(\Delta W = B A\)。在训练中，损失对可训练参数的梯度为：
-\[
+LoRA 将原始权重冻结，仅更新增量部分 $\Delta W = B A$。在训练中，损失对可训练参数的梯度为：
+
+$$
 \frac{\partial \mathcal{L}}{\partial A} = B^\top \frac{\partial \mathcal{L}}{\partial \Delta W}, \qquad
 \frac{\partial \mathcal{L}}{\partial B} = \frac{\partial \mathcal{L}}{\partial \Delta W} A^\top.
-\]
+$$
+
 这种分解显著降低参数规模，适合对大模型进行快速定制。
 
 ## 代码结构解析

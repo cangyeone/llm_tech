@@ -1,131 +1,136 @@
-"""课程实验 6：多样性评估与调试
-
-用于检查对齐后模型生成结果的多样性，通过 distinct-n、
-互信息等指标帮助定位模式坍塌问题。
+# -*- coding: utf-8 -*-
 """
-from __future__ import annotations
+教程：对齐后生成结果的多样性评估（distinct-n & self-BLEU）
+- 多次采样生成 -> 计算 distinct-1/2/3 和 self-BLEU
+- 通过 temperature / top-k / top-p 调参观察模式坍塌风险
+- 直接运行，无需传参
 
-import argparse
-from dataclasses import dataclass
-from typing import Dict, List
+Run:
+  pip install transformers torch
+  python diversity_eval.py
+"""
 
-import numpy as np
-from transformers import AutoModelForCausalLM, AutoTokenizer
+import re
+from collections import Counter
+from itertools import chain
+from typing import List, Tuple
+import math
 
-DEFAULT_MODEL = "Qwen/Qwen3-1.8B-Instruct"
-EVAL_PROMPTS = [
-    "请介绍公司最新的会员福利。",
-    "请回答客户关于退货流程的问题。",
-    "请用简洁语言说明客服系统升级的好处。",
-]
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
+# ================== 可改参数 ==================
+MODEL_NAME = "Qwen/Qwen3-0.6b"
+PROMPT = "请用3-5句话解释什么是RLHF，以及它为何对客服机器人重要。"
+SAMPLES = 20
+MAX_NEW = 128
+TEMPERATURE = 0.8
+TOP_P = 0.95
+TOP_K = 50
+# ============================================
 
-@dataclass
-class DiversityArguments:
-    """多样性调试参数。"""
+def get_device():
+    if torch.cuda.is_available(): return "cuda"
+    if torch.backends.mps.is_available(): return "mps"
+    return "cpu"
 
-    model_name: str = DEFAULT_MODEL
-    sample_size: int = 3
-    max_new_tokens: int = 64
-    temperature: float = 0.8
+def simple_tok(s: str) -> List[str]:
+    s = s.strip().lower()
+    return re.findall(r"[\u4e00-\u9fff]|[a-z0-9]+|[^\s\w]", s, flags=re.IGNORECASE)
 
+def ngrams(tokens: List[str], n: int) -> List[Tuple[str, ...]]:
+    return [tuple(tokens[i:i+n]) for i in range(len(tokens) - n + 1)]
 
-def sample_responses(args: DiversityArguments) -> List[str]:
-    """从模型中采样多个回答。"""
+def distinct_n(texts: List[str], n: int) -> float:
+    all_ngrams = list(chain.from_iterable(ngrams(simple_tok(t), n) for t in texts))
+    if not all_ngrams: return 0.0
+    return len(set(all_ngrams)) / max(1, len(all_ngrams))
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+def bleu_score(hyp: List[str], refs: List[List[str]], max_n: int = 4) -> float:
+    def mod_precision(h, rs, n):
+        h_ngr = Counter(ngrams(h, n))
+        if not h_ngr: return 0.0
+        max_ref = Counter()
+        for r in rs:
+            max_ref |= Counter(ngrams(r, n))
+        clipped = sum(min(c, max_ref[g]) for g, c in h_ngr.items())
+        total = sum(h_ngr.values())
+        return (clipped + 1.0) / (total + 1.0)
+    hlen = len(hyp)
+    rlen = min((len(r) for r in refs), default=1)
+    bp = 1.0 if hlen > rlen else math.exp(1 - rlen / max(1, hlen))
+    logs = []
+    for n in range(1, max_n + 1):
+        p = mod_precision(hyp, refs, n)
+        logs.append(math.log(max(p, 1e-12)))
+    return float(bp * math.exp(sum(logs) / max_n))
 
-    model = AutoModelForCausalLM.from_pretrained(args.model_name)
-
-    responses: List[str] = []
-    for prompt in EVAL_PROMPTS:
-        inputs = tokenizer(prompt, return_tensors="pt")
-        outputs = model.generate(
-            **inputs,
-            do_sample=True,
-            temperature=args.temperature,
-            top_k=50,
-            max_new_tokens=args.max_new_tokens,
-            num_return_sequences=args.sample_size,
-        )
-        decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-        responses.extend(decoded)
-    return responses
-
-
-def distinct_n(responses: List[str], n: int) -> float:
-    """计算 distinct-n 指标。"""
-
-    total_ngrams = 0
-    unique_ngrams = set()
-    for text in responses:
-        tokens = text.split()
-        if len(tokens) < n:
-            continue
-        total_ngrams += len(tokens) - n + 1
-        for i in range(len(tokens) - n + 1):
-            unique_ngrams.add(tuple(tokens[i : i + n]))
-    if total_ngrams == 0:
-        return 0.0
-    return len(unique_ngrams) / total_ngrams
-
-
-def self_bleu(responses: List[str]) -> float:
-    """计算平均自 BLEU，用于衡量回答之间的相似性。"""
-
-    from sacrebleu.metrics import BLEU
-
-    bleu = BLEU()
+def self_bleu(texts: List[str], max_n: int = 4) -> float:
+    toks = [simple_tok(t) for t in texts]
+    if len(toks) <= 1: return 0.0
     scores = []
-    for i, hyp in enumerate(responses):
-        refs = responses[:i] + responses[i + 1 :]
-        if not refs:
-            continue
-        score = bleu.corpus_score([hyp], [refs]).score
-        scores.append(score)
-    return float(np.mean(scores)) if scores else 0.0
+    for i in range(len(toks)):
+        hyp = toks[i]
+        refs = toks[:i] + toks[i+1:]
+        scores.append(bleu_score(hyp, refs, max_n=max_n))
+    return sum(scores) / len(scores)
 
+def generate_samples(model_name: str, prompt: str, samples: int, max_new: int,
+                     temp: float, top_p: float, top_k: int) -> List[str]:
+    tok = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, use_fast=False)
+    if tok.pad_token is None and tok.eos_token is not None:
+        tok.pad_token = tok.eos_token
+        tok.pad_token_id = tok.eos_token_id
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name, trust_remote_code=True, attn_implementation="eager"
+    ).to(get_device()).eval()
 
-def analyze_diversity(responses: List[str]) -> Dict[str, float]:
-    """综合 distinct 与自 BLEU 指标，输出调试建议。"""
+    outs = []
+    for _ in range(samples):
+        enc = tok(prompt, return_tensors="pt").to(model.device)
+        out = model.generate(
+            **enc, max_new_tokens=max_new, do_sample=True,
+            temperature=max(1e-3, temp), top_p=top_p, top_k=top_k,
+            eos_token_id=tok.eos_token_id, pad_token_id=tok.pad_token_id
+        )
+        text = tok.decode(out[0], skip_special_tokens=True)
+        m = re.search(r"回答[:：]\s*(.*)", text, flags=re.S)
+        outs.append((m.group(1) if m else text).strip())
+    return outs
 
-    metrics = {
-        "distinct_1": distinct_n(responses, 1),
-        "distinct_2": distinct_n(responses, 2),
-        "self_bleu": self_bleu(responses),
-    }
-    return metrics
+def main():
+    device = get_device()
+    print(f"Device: {device} | Model: {MODEL_NAME}")
+    print(f"Prompt: {PROMPT}")
+    print(f"Sampling: temp={TEMPERATURE} top_p={TOP_P} top_k={TOP_K} samples={SAMPLES} max_new={MAX_NEW}")
 
+    texts = generate_samples(MODEL_NAME, PROMPT, SAMPLES, MAX_NEW, TEMPERATURE, TOP_P, TOP_K)
 
-def parse_args() -> DiversityArguments:
-    """解析命令行参数。"""
+    d1 = distinct_n(texts, 1)
+    d2 = distinct_n(texts, 2)
+    d3 = distinct_n(texts, 3)
+    sbleu = self_bleu(texts, max_n=4)
 
-    parser = argparse.ArgumentParser(description="多样性评估")
-    parser.add_argument("--model", type=str, default=DEFAULT_MODEL)
-    parser.add_argument("--samples", type=int, default=3)
-    parser.add_argument("--max-new", type=int, default=64)
-    parser.add_argument("--temperature", type=float, default=0.8)
-    parsed = parser.parse_args()
-    return DiversityArguments(
-        model_name=parsed.model,
-        sample_size=parsed.samples,
-        max_new_tokens=parsed.max_new,
-        temperature=parsed.temperature,
-    )
+    print("\n=== Diversity Metrics ===")
+    print(f"distinct-1: {d1:.4f}")
+    print(f"distinct-2: {d2:.4f}")
+    print(f"distinct-3: {d3:.4f}")
+    print(f"self-BLEU : {sbleu:.4f}   (越低越分散，越高越相似)")
 
+    tips = []
+    if sbleu > 0.6:
+        tips.append("self-BLEU 较高 → 输出相似：尝试增大 temperature 或增大 top_p/减小 top_k。")
+    if d2 < 0.15:
+        tips.append("distinct-2 较低 → 短语级多样性不足：尝试提高 temperature 或放宽 top-p。")
+    if not tips:
+        tips.append("多样性尚可。可在保持质量前提下微调 temperature/top-p 寻找最佳点。")
 
-def main() -> None:
-    args = parse_args()
-    responses = sample_responses(args)
-    metrics = analyze_diversity(responses)
-    print("多样性指标：")
-    for key, value in metrics.items():
-        print(f"- {key}: {value:.4f}")
-    if metrics["self_bleu"] > 80:
-        print("警告：自 BLEU 过高，可能存在模式坍塌。建议提高温度或引入 Top-p 采样。")
+    print("\n=== Heuristic Tips ===")
+    for t in tips: print("•", t)
 
+    print("\n=== Samples (first 3) ===")
+    for i, t in enumerate(texts[:3], 1):
+        print(f"[{i}] {t[:400].replace('\\n', ' ')}")
 
 if __name__ == "__main__":
     main()

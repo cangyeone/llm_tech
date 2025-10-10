@@ -7,9 +7,11 @@
 
 ## 背景原理
 客服对齐关注礼貌、同理心与问题解决能力。本案例通过人工模板打分：
-\[
+
+$$
 \text{score} = 0.6 \times \text{coverage} + 0.4 \times \text{politeness},
-\]
+$$
+
 其中 `coverage` 检查是否包含感谢/道歉等关键措辞，`politeness` 评估礼貌表达。
 
 ## 代码结构解析

@@ -9,9 +9,10 @@
 当模型先后接触不同领域数据时，易出现灾难性遗忘。常见缓解策略包括：
 1. **样本重放**：从旧领域抽取部分样本与新数据混合训练。
 2. **知识蒸馏/KL 正则**：保持新模型输出与旧模型一致，损失形式：
-   \[
-   \mathcal{L}_{\text{KL}} = \lambda \cdot \mathrm{KL}\big(\pi_{\text{new}}(y|x) \Vert \pi_{\text{old}}(y|x)\big).
-   \]
+
+$$
+\mathcal{L}_{\text{KL}} = \lambda \cdot \mathrm{KL}\big(\pi_{\text{new}}(y|x) \Vert \pi_{\text{old}}(y|x)\big).
+$$
 
 ## 代码结构解析
 - `IncrementalArgs`：配置模型名称、领域数据集、LoRA 秩、重放比例等。
@@ -28,6 +29,14 @@
 2. 根据数据差异调整 `replay_ratio` 与 `kl_coeff`，平衡新旧知识。
 3. 运行脚本后，保存的 `./outputs/incremental_lora` 包含增量适配器，可在推理时加载。
 4. 通过对比增量前后的旧领域性能，验证灾难性遗忘是否缓解。
+
+```python 
+def kl_reg_loss(new_logits: torch.Tensor, old_logits: torch.Tensor, coeff: float) -> torch.Tensor:
+    new_log_probs = torch.log_softmax(new_logits, dim=-1)
+    old_log_probs = torch.log_softmax(old_logits, dim=-1)
+    kl = torch.nn.functional.kl_div(new_log_probs, old_log_probs, reduction="batchmean", log_target=True)
+    return coeff * kl
+```
 
 ## 深入讨论
 - 如果旧领域数据保密，是否可以使用旧模型生成伪样本作为重放数据？

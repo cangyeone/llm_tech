@@ -1,0 +1,200 @@
+{"translation": {"en": "We validated travel-time tables against EQTransformer predictions.", "zh": "我们将走时表与 EQTransformer 的预测结果进行了对比验证。"}}
+{"translation": {"en": "Back-azimuth was estimated at 0.7 degrees for an epicentral distance of 7886 km.", "zh": "对于7886km的震中距，反方位角估计为 0.7 度。"}}
+{"translation": {"en": "We curated a clean dataset with 18485 events and 36586 noise segments.", "zh": "我们整理了包含 18485 个事件与 36586 段噪声的干净数据集。"}}
+{"translation": {"en": "The P-wave arrival was picked within a 1s window and an SNR of 24.7.", "zh": "P 波到时在1秒窗口内被拾取，信噪比为24.7。"}}
+{"translation": {"en": "Back-translation augmented 68699 synthetic sentence pairs.", "zh": "回译扩增生成了 68699 对合成句对。"}}
+{"translation": {"en": "The earthquake catalog for Istanbul lowered the magnitude threshold to 3.5.", "zh": "伊斯坦布尔的地震目录将震级阈值降低到 3.5。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.21 and 0.75 Hz constrains the shallow velocity model.", "zh": "0.21 到 0.75 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "Back-translation augmented 7458 synthetic sentence pairs.", "zh": "回译扩增生成了 7458 对合成句对。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable noise cross-correlation between stations.", "zh": "噪声互相关显示台站之间存在稳定的噪声互相关。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.74 g at station S8805.", "zh": "台站 S8805 的峰值加速度达到 0.74 g。"}}
+{"translation": {"en": "The sampling rate was 200 Hz with a 20s time window.", "zh": "采样率为 200 Hz，时间窗为 20 秒。"}}
+{"translation": {"en": "Back-azimuth was estimated at 83.6 degrees for an epicentral distance of 7265 km.", "zh": "对于7265km的震中距，反方位角估计为 83.6 度。"}}
+{"translation": {"en": "The pipeline supports cross-validation with 5-fold splits.", "zh": "该流程支持 5 折交叉验证。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.09 and 0.79 Hz constrains the shallow velocity model.", "zh": "0.09 到 0.79 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "The earthquake catalog for Chengdu lowered the magnitude threshold to 1.0.", "zh": "成都的地震目录将震级阈值降低到 1.0。"}}
+{"translation": {"en": "We curated a clean dataset with 12548 events and 22318 noise segments.", "zh": "我们整理了包含 12548 个事件与 22318 段噪声的干净数据集。"}}
+{"translation": {"en": "The P-wave arrival was picked within a 5s window and an SNR of 2.5.", "zh": "P 波到时在5秒窗口内被拾取，信噪比为2.5。"}}
+{"translation": {"en": "The model converged in 3 epochs with cosine decay.", "zh": "模型在 3 个周期内采用余弦衰减完成收敛。"}}
+{"translation": {"en": "Back-azimuth was estimated at 68.0 degrees for an epicentral distance of 3572 km.", "zh": "对于3572km的震中距，反方位角估计为 68.0 度。"}}
+{"translation": {"en": "The foundation model improved generalization on far-field events.", "zh": "该基座模型提升了对远震事件的泛化能力。"}}
+{"translation": {"en": "Domain adaptation reduced the generalization gap across regions.", "zh": "领域自适应降低了跨区域的泛化差距。"}}
+{"translation": {"en": "Array beamforming in San Francisco enhanced weak Love wave energy.", "zh": "旧金山的阵列波束形成增强了微弱的勒夫波能量。"}}
+{"translation": {"en": "Back-translation augmented 89455 synthetic sentence pairs.", "zh": "回译扩增生成了 89455 对合成句对。"}}
+{"translation": {"en": "We exported TorchScript and ONNX Runtime variants for real-time inference.", "zh": "我们导出了 TorchScript 与 ONNX Runtime 版本以实现实时推理。"}}
+{"translation": {"en": "The model converged in 5 epochs with cosine decay.", "zh": "模型在 5 个周期内采用余弦衰减完成收敛。"}}
+{"translation": {"en": "We processed 268 stations in Beijing using a geophone network.", "zh": "我们在北京使用地震检波器台网处理了268个台站。"}}
+{"translation": {"en": "We applied LoRA fine-tuning on a causal Transformer with 1.2M trainable parameters.", "zh": "我们在一个因果 Transformer 上应用了 LoRA 微调，可训练参数为 1.2M。"}}
+{"translation": {"en": "We applied LoRA fine-tuning on a causal Transformer with 25.6M trainable parameters.", "zh": "我们在一个因果 Transformer 上应用了 LoRA 微调，可训练参数为 25.6M。"}}
+{"translation": {"en": "Back-translation augmented 51486 synthetic sentence pairs.", "zh": "回译扩增生成了 51486 对合成句对。"}}
+{"translation": {"en": "The sampling rate was 100 Hz with a 60s time window.", "zh": "采样率为 100 Hz，时间窗为 60 秒。"}}
+{"translation": {"en": "The earthquake catalog for Taipei lowered the magnitude threshold to 2.3.", "zh": "台北的地震目录将震级阈值降低到 2.3。"}}
+{"translation": {"en": "We processed 195 stations in Jiangxi using a accelerometer network.", "zh": "我们在江西使用强震台网处理了195个台站。"}}
+{"translation": {"en": "Back-azimuth was estimated at 83.2 degrees for an epicentral distance of 7447 km.", "zh": "对于7447km的震中距，反方位角估计为 83.2 度。"}}
+{"translation": {"en": "We curated a clean dataset with 2863 events and 26245 noise segments.", "zh": "我们整理了包含 2863 个事件与 26245 段噪声的干净数据集。"}}
+{"translation": {"en": "Back-translation augmented 33341 synthetic sentence pairs.", "zh": "回译扩增生成了 33341 对合成句对。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.49 g at station S4494.", "zh": "台站 S4494 的峰值加速度达到 0.49 g。"}}
+{"translation": {"en": "Quality control removed 16.8% of traces with clipping or gaps.", "zh": "质量控制移除了 16.8% 存在饱和或间断的记录。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable Rayleigh wave between stations.", "zh": "噪声互相关显示台站之间存在稳定的瑞利波。"}}
+{"translation": {"en": "Back-azimuth was estimated at 349.2 degrees for an epicentral distance of 2311 km.", "zh": "对于2311km的震中距，反方位角估计为 349.2 度。"}}
+{"translation": {"en": "We validated travel-time tables against PhaseNet predictions.", "zh": "我们将走时表与 PhaseNet 的预测结果进行了对比验证。"}}
+{"translation": {"en": "Back-translation augmented 6427 synthetic sentence pairs.", "zh": "回译扩增生成了 6427 对合成句对。"}}
+{"translation": {"en": "We processed 246 stations in Beijing using a accelerometer network.", "zh": "我们在北京使用强震台网处理了246个台站。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.60 g at station S6314.", "zh": "台站 S6314 的峰值加速度达到 0.60 g。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable fault plane solution between stations.", "zh": "噪声互相关显示台站之间存在稳定的断层面解。"}}
+{"translation": {"en": "Quality control removed 14.3% of traces with clipping or gaps.", "zh": "质量控制移除了 14.3% 存在饱和或间断的记录。"}}
+{"translation": {"en": "We processed 88 stations in Tokyo using a accelerometer network.", "zh": "我们在东京使用强震台网处理了88个台站。"}}
+{"translation": {"en": "Back-azimuth was estimated at 72.6 degrees for an epicentral distance of 4212 km.", "zh": "对于4212km的震中距，反方位角估计为 72.6 度。"}}
+{"translation": {"en": "Quality control removed 29.5% of traces with clipping or gaps.", "zh": "质量控制移除了 29.5% 存在饱和或间断的记录。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.23 and 0.94 Hz constrains the shallow velocity model.", "zh": "0.23 到 0.94 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable sampling rate between stations.", "zh": "噪声互相关显示台站之间存在稳定的采样率。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.65 g at station S8531.", "zh": "台站 S8531 的峰值加速度达到 0.65 g。"}}
+{"translation": {"en": "Quality control removed 5.4% of traces with clipping or gaps.", "zh": "质量控制移除了 5.4% 存在饱和或间断的记录。"}}
+{"translation": {"en": "Quality control removed 10.5% of traces with clipping or gaps.", "zh": "质量控制移除了 10.5% 存在饱和或间断的记录。"}}
+{"translation": {"en": "Back-translation augmented 45036 synthetic sentence pairs.", "zh": "回译扩增生成了 45036 对合成句对。"}}
+{"translation": {"en": "Quality control removed 31.7% of traces with clipping or gaps.", "zh": "质量控制移除了 31.7% 存在饱和或间断的记录。"}}
+{"translation": {"en": "Back-azimuth was estimated at 176.3 degrees for an epicentral distance of 3290 km.", "zh": "对于3290km的震中距，反方位角估计为 176.3 度。"}}
+{"translation": {"en": "Quality control removed 15.5% of traces with clipping or gaps.", "zh": "质量控制移除了 15.5% 存在饱和或间断的记录。"}}
+{"translation": {"en": "We curated a clean dataset with 13877 events and 15061 noise segments.", "zh": "我们整理了包含 13877 个事件与 15061 段噪声的干净数据集。"}}
+{"translation": {"en": "We processed 139 stations in Luzhou using a short-period network.", "zh": "我们在泸州使用短周期台网处理了139个台站。"}}
+{"translation": {"en": "Array beamforming in Beijing enhanced weak S-wave energy.", "zh": "北京的阵列波束形成增强了微弱的S 波能量。"}}
+{"translation": {"en": "Array beamforming in Jiangxi enhanced weak S-wave energy.", "zh": "江西的阵列波束形成增强了微弱的S 波能量。"}}
+{"translation": {"en": "Back-azimuth was estimated at 264.6 degrees for an epicentral distance of 4753 km.", "zh": "对于4753km的震中距，反方位角估计为 264.6 度。"}}
+{"translation": {"en": "The earthquake catalog for Istanbul lowered the magnitude threshold to 1.9.", "zh": "伊斯坦布尔的地震目录将震级阈值降低到 1.9。"}}
+{"translation": {"en": "The model converged in 10 epochs with cosine decay.", "zh": "模型在 10 个周期内采用余弦衰减完成收敛。"}}
+{"translation": {"en": "We validated travel-time tables against TransformerMultitask predictions.", "zh": "我们将走时表与 TransformerMultitask 的预测结果进行了对比验证。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable P-wave between stations.", "zh": "噪声互相关显示台站之间存在稳定的P 波。"}}
+{"translation": {"en": "We validated travel-time tables against TauPSNet predictions.", "zh": "我们将走时表与 TauPSNet 的预测结果进行了对比验证。"}}
+{"translation": {"en": "We curated a clean dataset with 15994 events and 47910 noise segments.", "zh": "我们整理了包含 15994 个事件与 47910 段噪声的干净数据集。"}}
+{"translation": {"en": "We applied LoRA fine-tuning on a causal Transformer with 12.3M trainable parameters.", "zh": "我们在一个因果 Transformer 上应用了 LoRA 微调，可训练参数为 12.3M。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.53 g at station S9559.", "zh": "台站 S9559 的峰值加速度达到 0.53 g。"}}
+{"translation": {"en": "The earthquake catalog for San Francisco lowered the magnitude threshold to 1.0.", "zh": "旧金山的地震目录将震级阈值降低到 1.0。"}}
+{"translation": {"en": "The pipeline supports cross-validation with 3-fold splits.", "zh": "该流程支持 3 折交叉验证。"}}
+{"translation": {"en": "The receiver function stack indicates a 25.5 km Moho.", "zh": "接收函数叠加结果显示莫霍面位于 25.5 km。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable velocity model between stations.", "zh": "噪声互相关显示台站之间存在稳定的速度结构。"}}
+{"translation": {"en": "Back-azimuth was estimated at 323.7 degrees for an epicentral distance of 3101 km.", "zh": "对于3101km的震中距，反方位角估计为 323.7 度。"}}
+{"translation": {"en": "Back-azimuth was estimated at 333.6 degrees for an epicentral distance of 8834 km.", "zh": "对于8834km的震中距，反方位角估计为 333.6 度。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable quality control between stations.", "zh": "噪声互相关显示台站之间存在稳定的质量控制。"}}
+{"translation": {"en": "The pipeline supports cross-validation with 10-fold splits.", "zh": "该流程支持 10 折交叉验证。"}}
+{"translation": {"en": "The receiver function stack indicates a 45.2 km Moho.", "zh": "接收函数叠加结果显示莫霍面位于 45.2 km。"}}
+{"translation": {"en": "The S-wave arrival was picked within a 20s window and an SNR of 10.0.", "zh": "S 波到时在20秒窗口内被拾取，信噪比为10.0。"}}
+{"translation": {"en": "The P-wave arrival was picked within a 10s window and an SNR of 7.0.", "zh": "P 波到时在10秒窗口内被拾取，信噪比为7.0。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.80 g at station S1600.", "zh": "台站 S1600 的峰值加速度达到 0.80 g。"}}
+{"translation": {"en": "The Love wave arrival was picked within a 1s window and an SNR of 14.4.", "zh": "勒夫波到时在1秒窗口内被拾取，信噪比为14.4。"}}
+{"translation": {"en": "Back-translation augmented 62756 synthetic sentence pairs.", "zh": "回译扩增生成了 62756 对合成句对。"}}
+{"translation": {"en": "The earthquake catalog for Tokyo lowered the magnitude threshold to 1.9.", "zh": "东京的地震目录将震级阈值降低到 1.9。"}}
+{"translation": {"en": "The sampling rate was 50 Hz with a 10s time window.", "zh": "采样率为 50 Hz，时间窗为 10 秒。"}}
+{"translation": {"en": "The receiver function stack indicates a 29.0 km Moho.", "zh": "接收函数叠加结果显示莫霍面位于 29.0 km。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.60 g at station S3260.", "zh": "台站 S3260 的峰值加速度达到 0.60 g。"}}
+{"translation": {"en": "The Rayleigh wave arrival was picked within a 2s window and an SNR of 10.3.", "zh": "瑞利波到时在2秒窗口内被拾取，信噪比为10.3。"}}
+{"translation": {"en": "The sampling rate was 100 Hz with a 10s time window.", "zh": "采样率为 100 Hz，时间窗为 10 秒。"}}
+{"translation": {"en": "Quality control removed 8.4% of traces with clipping or gaps.", "zh": "质量控制移除了 8.4% 存在饱和或间断的记录。"}}
+{"translation": {"en": "The sampling rate was 80 Hz with a 30s time window.", "zh": "采样率为 80 Hz，时间窗为 30 秒。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.09 g at station S9409.", "zh": "台站 S9409 的峰值加速度达到 0.09 g。"}}
+{"translation": {"en": "The earthquake catalog for Chengdu lowered the magnitude threshold to 0.7.", "zh": "成都的地震目录将震级阈值降低到 0.7。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable magnitude threshold between stations.", "zh": "噪声互相关显示台站之间存在稳定的震级阈值。"}}
+{"translation": {"en": "The Love wave arrival was picked within a 3s window and an SNR of 19.4.", "zh": "勒夫波到时在3秒窗口内被拾取，信噪比为19.4。"}}
+{"translation": {"en": "The sampling rate was 50 Hz with a 60s time window.", "zh": "采样率为 50 Hz，时间窗为 60 秒。"}}
+{"translation": {"en": "We processed 161 stations in Jiangxi using a accelerometer network.", "zh": "我们在江西使用强震台网处理了161个台站。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.49 g at station S0601.", "zh": "台站 S0601 的峰值加速度达到 0.49 g。"}}
+{"translation": {"en": "Back-azimuth was estimated at 38.5 degrees for an epicentral distance of 3358 km.", "zh": "对于3358km的震中距，反方位角估计为 38.5 度。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.08 g at station S1233.", "zh": "台站 S1233 的峰值加速度达到 0.08 g。"}}
+{"translation": {"en": "We curated a clean dataset with 8919 events and 25228 noise segments.", "zh": "我们整理了包含 8919 个事件与 25228 段噪声的干净数据集。"}}
+{"translation": {"en": "The earthquake catalog for Tokyo lowered the magnitude threshold to 1.2.", "zh": "东京的地震目录将震级阈值降低到 1.2。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.11 and 0.55 Hz constrains the shallow velocity model.", "zh": "0.11 到 0.55 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "Quality control removed 29.6% of traces with clipping or gaps.", "zh": "质量控制移除了 29.6% 存在饱和或间断的记录。"}}
+{"translation": {"en": "Quality control removed 16.5% of traces with clipping or gaps.", "zh": "质量控制移除了 16.5% 存在饱和或间断的记录。"}}
+{"translation": {"en": "Back-translation augmented 17672 synthetic sentence pairs.", "zh": "回译扩增生成了 17672 对合成句对。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.11 and 0.72 Hz constrains the shallow velocity model.", "zh": "0.11 到 0.72 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "The earthquake catalog for Tokyo lowered the magnitude threshold to 0.6.", "zh": "东京的地震目录将震级阈值降低到 0.6。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable travel-time table between stations.", "zh": "噪声互相关显示台站之间存在稳定的走时表。"}}
+{"translation": {"en": "We curated a clean dataset with 14804 events and 10863 noise segments.", "zh": "我们整理了包含 14804 个事件与 10863 段噪声的干净数据集。"}}
+{"translation": {"en": "The S-wave arrival was picked within a 1s window and an SNR of 13.2.", "zh": "S 波到时在1秒窗口内被拾取，信噪比为13.2。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.12 and 0.90 Hz constrains the shallow velocity model.", "zh": "0.12 到 0.90 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "Array beamforming in Istanbul enhanced weak Love wave energy.", "zh": "伊斯坦布尔的阵列波束形成增强了微弱的勒夫波能量。"}}
+{"translation": {"en": "Array beamforming in Taipei enhanced weak Rayleigh wave energy.", "zh": "台北的阵列波束形成增强了微弱的瑞利波能量。"}}
+{"translation": {"en": "Back-azimuth was estimated at 168.0 degrees for an epicentral distance of 7385 km.", "zh": "对于7385km的震中距，反方位角估计为 168.0 度。"}}
+{"translation": {"en": "The earthquake catalog for Chengdu lowered the magnitude threshold to 0.4.", "zh": "成都的地震目录将震级阈值降低到 0.4。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.16 and 0.93 Hz constrains the shallow velocity model.", "zh": "0.16 到 0.93 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "The receiver function stack indicates a 21.2 km Moho.", "zh": "接收函数叠加结果显示莫霍面位于 21.2 km。"}}
+{"translation": {"en": "Back-translation augmented 66473 synthetic sentence pairs.", "zh": "回译扩增生成了 66473 对合成句对。"}}
+{"translation": {"en": "Array beamforming in Jiangxi enhanced weak Love wave energy.", "zh": "江西的阵列波束形成增强了微弱的勒夫波能量。"}}
+{"translation": {"en": "Quality control removed 34.0% of traces with clipping or gaps.", "zh": "质量控制移除了 34.0% 存在饱和或间断的记录。"}}
+{"translation": {"en": "Array beamforming in Luzhou enhanced weak Love wave energy.", "zh": "泸州的阵列波束形成增强了微弱的勒夫波能量。"}}
+{"translation": {"en": "Back-azimuth was estimated at 77.0 degrees for an epicentral distance of 6068 km.", "zh": "对于6068km的震中距，反方位角估计为 77.0 度。"}}
+{"translation": {"en": "The Love wave arrival was picked within a 1s window and an SNR of 13.8.", "zh": "勒夫波到时在1秒窗口内被拾取，信噪比为13.8。"}}
+{"translation": {"en": "The P-wave arrival was picked within a 2s window and an SNR of 23.6.", "zh": "P 波到时在2秒窗口内被拾取，信噪比为23.6。"}}
+{"translation": {"en": "Quality control removed 25.1% of traces with clipping or gaps.", "zh": "质量控制移除了 25.1% 存在饱和或间断的记录。"}}
+{"translation": {"en": "We processed 193 stations in Taipei using a short-period network.", "zh": "我们在台北使用短周期台网处理了193个台站。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable Transformer between stations.", "zh": "噪声互相关显示台站之间存在稳定的Transformer。"}}
+{"translation": {"en": "Back-translation augmented 64791 synthetic sentence pairs.", "zh": "回译扩增生成了 64791 对合成句对。"}}
+{"translation": {"en": "Quality control removed 17.2% of traces with clipping or gaps.", "zh": "质量控制移除了 17.2% 存在饱和或间断的记录。"}}
+{"translation": {"en": "We applied LoRA fine-tuning on a causal Transformer with 4.7M trainable parameters.", "zh": "我们在一个因果 Transformer 上应用了 LoRA 微调，可训练参数为 4.7M。"}}
+{"translation": {"en": "The P-wave arrival was picked within a 5s window and an SNR of 22.9.", "zh": "P 波到时在5秒窗口内被拾取，信噪比为22.9。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.14 and 0.65 Hz constrains the shallow velocity model.", "zh": "0.14 到 0.65 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "We processed 214 stations in Luzhou using a short-period network.", "zh": "我们在泸州使用短周期台网处理了214个台站。"}}
+{"translation": {"en": "The earthquake catalog for San Francisco lowered the magnitude threshold to 1.3.", "zh": "旧金山的地震目录将震级阈值降低到 1.3。"}}
+{"translation": {"en": "The earthquake catalog for Wellington lowered the magnitude threshold to 0.0.", "zh": "惠灵顿的地震目录将震级阈值降低到 0.0。"}}
+{"translation": {"en": "We curated a clean dataset with 19468 events and 16021 noise segments.", "zh": "我们整理了包含 19468 个事件与 16021 段噪声的干净数据集。"}}
+{"translation": {"en": "The Love wave arrival was picked within a 5s window and an SNR of 19.4.", "zh": "勒夫波到时在5秒窗口内被拾取，信噪比为19.4。"}}
+{"translation": {"en": "We processed 221 stations in Chengdu using a broadband network.", "zh": "我们在成都使用宽频带台网处理了221个台站。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.47 g at station S5609.", "zh": "台站 S5609 的峰值加速度达到 0.47 g。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable receiver function between stations.", "zh": "噪声互相关显示台站之间存在稳定的接收函数。"}}
+{"translation": {"en": "Quality control removed 11.6% of traces with clipping or gaps.", "zh": "质量控制移除了 11.6% 存在饱和或间断的记录。"}}
+{"translation": {"en": "The sampling rate was 200 Hz with a 60s time window.", "zh": "采样率为 200 Hz，时间窗为 60 秒。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.10 and 0.59 Hz constrains the shallow velocity model.", "zh": "0.10 到 0.59 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "Back-translation augmented 7562 synthetic sentence pairs.", "zh": "回译扩增生成了 7562 对合成句对。"}}
+{"translation": {"en": "The receiver function stack indicates a 47.2 km Moho.", "zh": "接收函数叠加结果显示莫霍面位于 47.2 km。"}}
+{"translation": {"en": "Back-azimuth was estimated at 32.3 degrees for an epicentral distance of 4821 km.", "zh": "对于4821km的震中距，反方位角估计为 32.3 度。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable tomography between stations.", "zh": "噪声互相关显示台站之间存在稳定的层析成像。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.15 and 0.91 Hz constrains the shallow velocity model.", "zh": "0.15 到 0.91 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "We curated a clean dataset with 5139 events and 17425 noise segments.", "zh": "我们整理了包含 5139 个事件与 17425 段噪声的干净数据集。"}}
+{"translation": {"en": "Array beamforming in Beijing enhanced weak P-wave energy.", "zh": "北京的阵列波束形成增强了微弱的P 波能量。"}}
+{"translation": {"en": "Back-translation augmented 4840 synthetic sentence pairs.", "zh": "回译扩增生成了 4840 对合成句对。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable microseismic event between stations.", "zh": "噪声互相关显示台站之间存在稳定的微震事件。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.20 and 0.57 Hz constrains the shallow velocity model.", "zh": "0.20 到 0.57 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "Quality control removed 23.6% of traces with clipping or gaps.", "zh": "质量控制移除了 23.6% 存在饱和或间断的记录。"}}
+{"translation": {"en": "We processed 284 stations in Wellington using a short-period network.", "zh": "我们在惠灵顿使用短周期台网处理了284个台站。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.09 and 0.89 Hz constrains the shallow velocity model.", "zh": "0.09 到 0.89 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "We curated a clean dataset with 11084 events and 27924 noise segments.", "zh": "我们整理了包含 11084 个事件与 27924 段噪声的干净数据集。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.24 and 0.64 Hz constrains the shallow velocity model.", "zh": "0.24 到 0.64 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "The receiver function stack indicates a 27.0 km Moho.", "zh": "接收函数叠加结果显示莫霍面位于 27.0 km。"}}
+{"translation": {"en": "Array beamforming in Luzhou enhanced weak P-wave energy.", "zh": "泸州的阵列波束形成增强了微弱的P 波能量。"}}
+{"translation": {"en": "We curated a clean dataset with 12221 events and 13898 noise segments.", "zh": "我们整理了包含 12221 个事件与 13898 段噪声的干净数据集。"}}
+{"translation": {"en": "Back-translation augmented 10344 synthetic sentence pairs.", "zh": "回译扩增生成了 10344 对合成句对。"}}
+{"translation": {"en": "We processed 233 stations in Wellington using a short-period network.", "zh": "我们在惠灵顿使用短周期台网处理了233个台站。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.23 and 0.64 Hz constrains the shallow velocity model.", "zh": "0.23 到 0.64 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "Back-translation augmented 5338 synthetic sentence pairs.", "zh": "回译扩增生成了 5338 对合成句对。"}}
+{"translation": {"en": "We processed 22 stations in Istanbul using a short-period network.", "zh": "我们在伊斯坦布尔使用短周期台网处理了22个台站。"}}
+{"translation": {"en": "The receiver function stack indicates a 26.0 km Moho.", "zh": "接收函数叠加结果显示莫霍面位于 26.0 km。"}}
+{"translation": {"en": "The receiver function stack indicates a 46.4 km Moho.", "zh": "接收函数叠加结果显示莫霍面位于 46.4 km。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable ONNX Runtime between stations.", "zh": "噪声互相关显示台站之间存在稳定的ONNX Runtime。"}}
+{"translation": {"en": "Quality control removed 30.8% of traces with clipping or gaps.", "zh": "质量控制移除了 30.8% 存在饱和或间断的记录。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.10 and 0.98 Hz constrains the shallow velocity model.", "zh": "0.10 到 0.98 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.40 g at station S4865.", "zh": "台站 S4865 的峰值加速度达到 0.40 g。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable foundation model between stations.", "zh": "噪声互相关显示台站之间存在稳定的基座模型。"}}
+{"translation": {"en": "Quality control removed 30.6% of traces with clipping or gaps.", "zh": "质量控制移除了 30.6% 存在饱和或间断的记录。"}}
+{"translation": {"en": "We curated a clean dataset with 12971 events and 12646 noise segments.", "zh": "我们整理了包含 12971 个事件与 12646 段噪声的干净数据集。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.05 and 0.98 Hz constrains the shallow velocity model.", "zh": "0.05 到 0.98 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "Peak ground acceleration reached 0.14 g at station S7765.", "zh": "台站 S7765 的峰值加速度达到 0.14 g。"}}
+{"translation": {"en": "The Love wave arrival was picked within a 30s window and an SNR of 24.5.", "zh": "勒夫波到时在30秒窗口内被拾取，信噪比为24.5。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable seismic phase between stations.", "zh": "噪声互相关显示台站之间存在稳定的震相。"}}
+{"translation": {"en": "The P-wave arrival was picked within a 20s window and an SNR of 4.3.", "zh": "P 波到时在20秒窗口内被拾取，信噪比为4.3。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable finite fault between stations.", "zh": "噪声互相关显示台站之间存在稳定的有限断层。"}}
+{"translation": {"en": "Array beamforming in Tokyo enhanced weak Rayleigh wave energy.", "zh": "东京的阵列波束形成增强了微弱的瑞利波能量。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.07 and 0.31 Hz constrains the shallow velocity model.", "zh": "0.07 到 0.31 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "We validated travel-time tables against DispNet predictions.", "zh": "我们将走时表与 DispNet 的预测结果进行了对比验证。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.22 and 0.61 Hz constrains the shallow velocity model.", "zh": "0.22 到 0.61 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "The earthquake catalog for Luzhou lowered the magnitude threshold to 0.3.", "zh": "泸州的地震目录将震级阈值降低到 0.3。"}}
+{"translation": {"en": "We curated a clean dataset with 15214 events and 39395 noise segments.", "zh": "我们整理了包含 15214 个事件与 39395 段噪声的干净数据集。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.22 and 0.64 Hz constrains the shallow velocity model.", "zh": "0.22 到 0.64 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "Quality control removed 12.6% of traces with clipping or gaps.", "zh": "质量控制移除了 12.6% 存在饱和或间断的记录。"}}
+{"translation": {"en": "We processed 52 stations in Yangbi using a short-period network.", "zh": "我们在漾濞使用短周期台网处理了52个台站。"}}
+{"translation": {"en": "Back-azimuth was estimated at 261.5 degrees for an epicentral distance of 8276 km.", "zh": "对于8276km的震中距，反方位角估计为 261.5 度。"}}
+{"translation": {"en": "Noise cross-correlation revealed a stable array beamforming between stations.", "zh": "噪声互相关显示台站之间存在稳定的阵列波束形成。"}}
+{"translation": {"en": "We processed 332 stations in Yangbi using a accelerometer network.", "zh": "我们在漾濞使用强震台网处理了332个台站。"}}
+{"translation": {"en": "We processed 346 stations in Istanbul using a accelerometer network.", "zh": "我们在伊斯坦布尔使用强震台网处理了346个台站。"}}
+{"translation": {"en": "The sampling rate was 100 Hz with a 30s time window.", "zh": "采样率为 100 Hz，时间窗为 30 秒。"}}
+{"translation": {"en": "The receiver function stack indicates a 37.7 km Moho.", "zh": "接收函数叠加结果显示莫霍面位于 37.7 km。"}}
+{"translation": {"en": "Rayleigh-wave dispersion between 0.24 and 0.93 Hz constrains the shallow velocity model.", "zh": "0.24 到 0.93 Hz的瑞利波频散约束了浅部速度模型。"}}
+{"translation": {"en": "The S-wave arrival was picked within a 10s window and an SNR of 4.5.", "zh": "S 波到时在10秒窗口内被拾取，信噪比为4.5。"}}

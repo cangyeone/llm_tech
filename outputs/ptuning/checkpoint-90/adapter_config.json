@@ -1,0 +1,17 @@
+{
+  "auto_mapping": null,
+  "base_model_name_or_path": "Qwen/Qwen3-0.6B",
+  "encoder_dropout": 0.0,
+  "encoder_hidden_size": 512,
+  "encoder_num_layers": 2,
+  "encoder_reparameterization_type": "MLP",
+  "inference_mode": true,
+  "num_attention_heads": 16,
+  "num_layers": 28,
+  "num_transformer_submodules": 1,
+  "num_virtual_tokens": 32,
+  "peft_type": "P_TUNING",
+  "revision": null,
+  "task_type": "CAUSAL_LM",
+  "token_dim": 1024
+}

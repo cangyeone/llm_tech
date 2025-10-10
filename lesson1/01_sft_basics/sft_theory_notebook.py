@@ -34,7 +34,7 @@ logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s - %(
 class FinetuneConfig:
     """微调超参数配置。"""
 
-    model_name: str = "Qwen/Qwen2-1.5B-Instruct"
+    model_name: str = "Qwen/Qwen3-4b"
     output_dir: Path = Path("./outputs/sft_basics")
     max_steps: int = 30
     learning_rate: float = 5e-5
