@@ -32,7 +32,7 @@ from transformers import (
 @dataclass
 class QLoRAConfig:
     data_path: Path
-    model_name: str = "meta-llama/Llama-2-7b-chat-hf"
+    model_name: str = "Qwen/Qwen3-4b"
     output_dir: Path = Path("./outputs/llama_qlora")
     batch_size: int = 1
     gradient_accumulation: int = 16
@@ -42,8 +42,8 @@ class QLoRAConfig:
 
 def parse_args() -> QLoRAConfig:
     parser = argparse.ArgumentParser(description="LLaMA-7B QLoRA 微调")
-    parser.add_argument("--data", type=Path, required=True, help="指令 JSONL 数据路径")
-    parser.add_argument("--model", type=str, default="meta-llama/Llama-2-7b-chat-hf")
+    parser.add_argument("--data", type=Path, default="outputs/examples_translation_en_zh.jsonl", help="指令 JSONL 数据路径")
+    parser.add_argument("--model", type=str, default="Qwen/Qwen3-4b")
     parser.add_argument("--output", type=Path, default=Path("./outputs/llama_qlora"))
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--steps", type=int, default=100)

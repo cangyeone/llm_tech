@@ -1,162 +1,139 @@
-"""课程实验 2：基于 LangChain 思路的 RAG 流程编排
-
-本脚本不直接依赖 LangChain，而是以相同理念搭建一个轻量级调度器，
-演示链式调用、状态跟踪、指标记录等关键概念，帮助学员理解真实项目中
-如何组织检索与生成模块。
-"""
-from __future__ import annotations
-
-import argparse
+import numpy as np
+import string
+from sentence_transformers import SentenceTransformer
+from rank_bm25 import BM25Okapi
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import MinMaxScaler
+import logging
 import json
-from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+import time
 
+# ===== 1. 初始化 Logger 用于审计 =====
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-@dataclass
+# ===== 2. 创建示例语料库 =====
+corpus = [
+    "Retrieval-Augmented Generation (RAG) is a model architecture designed to improve the performance of text generation tasks.",
+    "By combining pre-trained generative models with retrieval mechanisms, RAG enables the generation of more relevant and informative responses.",
+    "The model retrieves documents or passages from a knowledge base during the generation process, providing a way to incorporate external information dynamically into the generation process.",
+    "RAG helps to solve issues with traditional text generation models by bringing in contextual information at generation time.",
+    "The primary goal of RAG is to leverage large-scale pre-trained models while simultaneously allowing for the incorporation of up-to-date, task-specific knowledge from external sources."
+]
+
+# ===== 3. 文本预处理函数 =====
+def preprocess(text):
+    return text.lower().translate(str.maketrans('', '', string.punctuation)).split()
+
+# ===== 4. StageContext 用于保存状态 =====
+import json
+import numpy as np
+import logging
+
+# 初始化 Logger 用于审计
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# StageContext 类用于保存每个阶段的状态
 class StageContext:
-    """保存链路执行过程中的上下文状态。"""
+    def __init__(self):
+        self.state = {}
 
-    query: str
-    retrieved_docs: List[str] = field(default_factory=list)
-    generation: Optional[str] = None
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    def save_state(self, key, value):
+        self.state[key] = value
 
+    def get_state(self, key):
+        return self.state.get(key)
 
-@dataclass
-class PipelineStage:
-    """模拟 LangChain 中的链式组件。"""
+    def log_state(self):
+        # 自定义序列化函数，将 ndarray 转换为列表
+        def json_serializable(obj):
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()  # 将 ndarray 转为普通列表
+            raise TypeError(f"Type {obj.__class__.__name__} not serializable")
 
-    name: str
-    handler: Callable[[StageContext], StageContext]
-
-    def run(self, context: StageContext) -> StageContext:
-        print(f"执行节点：{self.name}")
-        context = self.handler(context)
-        return context
-
-
-@dataclass
-class RAGPipeline:
-    """组合多个 Stage，实现可配置的 RAG 调度流程。"""
-
-    stages: List[PipelineStage]
-
-    def run(self, query: str) -> StageContext:
-        context = StageContext(query=query)
-        for stage in self.stages:
-            context = stage.run(context)
-        return context
+        # 使用自定义序列化函数
+        try:
+            logger.info(f"Current State: {json.dumps(self.state, default=json_serializable, indent=2)}")
+        except Exception as e:
+            logger.error(f"Error during logging state: {e}")
 
 
-def retrieval_stage(top_k: int) -> PipelineStage:
-    """检索节点：从知识库中返回与问题相关的文档片段。"""
 
-    knowledge_base = [
-        "RAG 架构通过检索相关文档增强大模型生成能力。",
-        "LangChain 提供模块化组件，方便搭建检索与生成流水线。",
-        "企业知识库需要权限控制与监控，确保信息合规。",
-        "混合检索结合 BM25 与向量方法，可提升召回率。",
-    ]
+# ===== 5. 任务处理阶段：检索 =====
+def retrieval_stage(query, corpus, context):
+    logger.info("Starting retrieval stage...")
+    # BM25 检索
+    corpus_tokenized = [preprocess(doc) for doc in corpus]
+    bm25 = BM25Okapi(corpus_tokenized)
+    query_tokenized = preprocess(query)
+    bm25_scores = bm25.get_scores(query_tokenized)
 
-    def handler(context: StageContext) -> StageContext:
-        print(f"检索 {top_k} 条文档片段……")
-        # 课堂示例：直接选取前 top_k 条文档
-        context.retrieved_docs = knowledge_base[:top_k]
-        context.metrics.setdefault("retrieval", {})
-        context.metrics["retrieval"].update({"top_k": top_k, "doc_count": len(context.retrieved_docs)})
-        return context
+    # 存储检索结果到 StageContext
+    context.save_state('retrieval_scores', bm25_scores)
+    context.save_state('retrieved_documents', [corpus[i] for i in np.argsort(bm25_scores)[::-1]])
 
-    return PipelineStage(name="retrieval", handler=handler)
+    # 返回检索结果
+    return bm25_scores, [corpus[i] for i in np.argsort(bm25_scores)[::-1]]
 
+# ===== 6. 任务处理阶段：重排序 =====
+def reranking_stage(query, retrieved_docs, context):
+    logger.info("Starting reranking stage...")
+    # 使用 Sentence-BERT 计算相似度进行重排序
+    sbert_model = SentenceTransformer('./Qwen/paraphrase')
+    query_embedding = sbert_model.encode([query])
+    retrieved_embeddings = sbert_model.encode(retrieved_docs)
 
-def rerank_stage() -> PipelineStage:
-    """重排序节点：根据简单打分调整顺序，模拟 LangChain 中的链式调用。"""
+    # 计算余弦相似度
+    cosine_similarities = cosine_similarity(query_embedding, retrieved_embeddings)
+    context.save_state('reranked_scores', cosine_similarities.flatten())
 
-    def handler(context: StageContext) -> StageContext:
-        if not context.retrieved_docs:
-            return context
-        scored = []
-        for doc in context.retrieved_docs:
-            score = 1.0 if "企业" in doc else 0.8
-            scored.append((doc, score))
-        scored.sort(key=lambda x: x[1], reverse=True)
-        context.retrieved_docs = [doc for doc, _ in scored]
-        context.metrics.setdefault("rerank", {})
-        context.metrics["rerank"].update({"method": "keyword_boost", "scores": [s for _, s in scored]})
-        return context
+    # 重排序文档
+    reranked_docs = [retrieved_docs[i] for i in np.argsort(cosine_similarities.flatten())[::-1]]
+    return reranked_docs, cosine_similarities.flatten()
 
-    return PipelineStage(name="rerank", handler=handler)
+# ===== 7. 任务处理阶段：生成答案 =====
+def generation_stage(query, reranked_docs, context):
+    logger.info("Starting generation stage...")
+    # 这里简单模拟生成答案的过程
+    context_text = " ".join(reranked_docs[:3])  # 选取前3个文档作为上下文
+    answer = f"Generated answer based on context: {context_text[:100]}..."  # 简单生成的答案
+    context.save_state('generated_answer', answer)
+    return answer
 
+# ===== 8. 任务处理阶段：审计 =====
+def audit_stage(context):
+    logger.info("Starting audit stage...")
+    # 审计各阶段的状态并记录日志
+    context.log_state()
+    return "Audit completed."
 
-def generation_stage(model_name: str) -> PipelineStage:
-    """生成节点：将检索到的文档组合成回答。"""
+# ===== 9. 流程串联 =====
+def main():
+    # 1. 创建 StageContext
+    context = StageContext()
 
-    def handler(context: StageContext) -> StageContext:
-        prompt = "\n".join(context.retrieved_docs)
-        answer = f"【{model_name}】根据检索内容生成：{prompt[:100]}…"
-        context.generation = answer
-        context.metrics.setdefault("generation", {})
-        context.metrics["generation"].update({"model": model_name, "prompt_length": len(prompt)})
-        return context
+    # 2. 用户查询
+    query = "What is RAG?"
 
-    return PipelineStage(name="generation", handler=handler)
+    # 3. 检索阶段
+    bm25_scores, retrieved_docs = retrieval_stage(query, corpus, context)
 
+    # 4. 重排序阶段
+    reranked_docs, reranked_scores = reranking_stage(query, retrieved_docs, context)
 
-def audit_stage(output_dir: Path) -> PipelineStage:
-    """审计节点：将链路执行信息写入日志，便于课堂讲解监控要点。"""
+    # 5. 生成答案阶段
+    generated_answer = generation_stage(query, reranked_docs, context)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # 6. 审计阶段
+    audit_result = audit_stage(context)
 
-    def handler(context: StageContext) -> StageContext:
-        log = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "query": context.query,
-            "retrieved_docs": context.retrieved_docs,
-            "generation": context.generation,
-            "metrics": context.metrics,
-        }
-        log_path = output_dir / f"rag_audit_{int(datetime.utcnow().timestamp())}.json"
-        log_path.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"审计日志已写入：{log_path}")
-        return context
-
-    return PipelineStage(name="audit", handler=handler)
-
-
-def build_pipeline(top_k: int, model_name: str, log_dir: Path) -> RAGPipeline:
-    """根据课堂参数构建 RAG 调度流程。"""
-
-    stages = [
-        retrieval_stage(top_k=top_k),
-        rerank_stage(),
-        generation_stage(model_name=model_name),
-        audit_stage(output_dir=log_dir),
-    ]
-    return RAGPipeline(stages=stages)
-
-
-def parse_args() -> argparse.Namespace:
-    """命令行参数：控制检索数量、模型名称与日志目录。"""
-
-    parser = argparse.ArgumentParser(description="LangChain 风格 RAG 流程编排演示")
-    parser.add_argument("query", type=str, help="用户查询")
-    parser.add_argument("--top_k", type=int, default=3, help="检索文档数量")
-    parser.add_argument("--model", type=str, default="Qwen3-7B-Chat", help="生成模型名称")
-    parser.add_argument("--log_dir", type=Path, default=Path("logs"), help="审计日志目录")
-    return parser.parse_args()
-
-
-def main() -> None:
-    """脚本入口：执行 RAG 管线并打印结果。"""
-
-    args = parse_args()
-    pipeline = build_pipeline(top_k=args.top_k, model_name=args.model, log_dir=args.log_dir)
-    context = pipeline.run(query=args.query)
-    print("最终回答：", context.generation)
-    print("指标记录：", json.dumps(context.metrics, ensure_ascii=False, indent=2))
-
+    # 输出最终答案
+    logger.info(f"Final Answer: {generated_answer}")
+    logger.info(f"Audit Result: {audit_result}")
 
 if __name__ == "__main__":
+    start_time = time.time()
     main()
+    end_time = time.time()
+    logger.info(f"Total execution time: {end_time - start_time:.2f} seconds")

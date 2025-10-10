@@ -1,149 +1,85 @@
-"""课程实验 3：知识库增量更新与重训练策略
-
-本脚本提供检测新增/变更文档、增量写入向量库、定期触发重训练的示例，
-帮助学员理解企业知识库在持续运营中的维护要点。
 """
-from __future__ import annotations
+微调通常涉及以下几个步骤：
 
-import argparse
-import json
-from dataclasses import dataclass, field
+文档更新后，重新训练检索模型： 对文档检索器（如 BM25、Dense Retriever 等）进行微调，使用最新的文档数据重新训练检索模型。这可以包括利用新的文档集对模型进行再训练，或者对旧的索引进行增量更新。
+微调生成模型：对生成模型（如 BART、T5、GPT 等）进行微调，尤其是根据新增的知识库内容来调整模型的生成能力。这通常通过 监督学习 或 强化学习 来进行微调。
+模型优化：微调不仅仅是训练模型，还可能包括模型的 超参数调节、训练策略（如迁移学习、增量训练等），确保检索和生成模型适应新的知识库。
+"""
+
+import logging
 from datetime import datetime
-from pathlib import Path
-from typing import Dict, List
 
-import numpy as np
+# 模拟的文档数据
+documents = {
+    1: {"content": "Document 1 about RAG.", "last_modified": datetime(2023, 5, 1)},
+    2: {"content": "Document 2 about BM25.", "last_modified": datetime(2023, 6, 10)},
+    3: {"content": "Document 3 about retrieval systems.", "last_modified": datetime(2023, 7, 1)},
+}
 
+# 新文档、更新文档、删除文档
+new_documents = {
+    4: {"content": "Document 4 about search models.", "last_modified": datetime(2023, 8, 10)}
+}
 
-@dataclass
-class DocumentRecord:
-    """记录文档内容与嵌入向量，便于演示增量写入。"""
+updated_documents = {
+    1: {"content": "Updated Document 1 about RAG and retrieval.", "last_modified": datetime(2023, 8, 5)}
+}
 
-    doc_id: str
-    text: str
-    embedding: List[float]
-    updated_at: str
+deleted_documents = [2]
 
+# 模拟的知识库和文档更新
+class KnowledgeBase:
+    def __init__(self):
+        self.index = {}  # 模拟的文档索引
 
-@dataclass
-class UpdatePlan:
-    """总结一次更新所需执行的操作。"""
+    def add_document(self, doc_id, content):
+        self.index[doc_id] = {"content": content, "last_modified": datetime.now()}
 
-    new_docs: List[DocumentRecord] = field(default_factory=list)
-    updated_docs: List[DocumentRecord] = field(default_factory=list)
-    removed_doc_ids: List[str] = field(default_factory=list)
-    need_retrain: bool = False
+    def update_document(self, doc_id, content):
+        if doc_id in self.index:
+            self.index[doc_id]["content"] = content
+            self.index[doc_id]["last_modified"] = datetime.now()
 
+    def delete_document(self, doc_id):
+        if doc_id in self.index:
+            del self.index[doc_id]
 
-def encode(text: str, dim: int = 128) -> List[float]:
-    """模拟编码器：返回归一化的随机向量。"""
+    def display_index(self):
+        for doc_id, doc_info in self.index.items():
+            print(f"Doc ID: {doc_id}, Content: {doc_info['content']}, Last Modified: {doc_info['last_modified']}")
 
-    rng = np.random.default_rng(abs(hash(text)) % (2**32))
-    vec = rng.standard_normal(dim)
-    vec /= np.linalg.norm(vec) + 1e-6
-    return vec.astype(float).tolist()
+# 增量更新
+kb = KnowledgeBase()
 
+# 新文档添加
+for doc_id, doc_info in new_documents.items():
+    kb.add_document(doc_id, doc_info["content"])
 
-def detect_changes(old_index: Dict[str, DocumentRecord], new_corpus: Dict[str, str]) -> UpdatePlan:
-    """对比旧索引与新语料，生成更新计划。"""
+# 更新文档
+for doc_id, doc_info in updated_documents.items():
+    kb.update_document(doc_id, doc_info["content"])
 
-    plan = UpdatePlan()
-    for doc_id, text in new_corpus.items():
-        if doc_id not in old_index:
-            plan.new_docs.append(
-                DocumentRecord(doc_id=doc_id, text=text, embedding=encode(text), updated_at=datetime.utcnow().isoformat())
-            )
-        elif old_index[doc_id].text != text:
-            plan.updated_docs.append(
-                DocumentRecord(doc_id=doc_id, text=text, embedding=encode(text), updated_at=datetime.utcnow().isoformat())
-            )
-    for doc_id in old_index:
-        if doc_id not in new_corpus:
-            plan.removed_doc_ids.append(doc_id)
-    # 简化策略：若更新比例超过 30%，建议重训练
-    total = max(len(new_corpus), 1)
-    change_ratio = (len(plan.new_docs) + len(plan.updated_docs)) / total
-    plan.need_retrain = change_ratio >= 0.3
-    return plan
+# 删除文档
+for doc_id in deleted_documents:
+    kb.delete_document(doc_id)
 
+# 显示更新后的索引
+kb.display_index()
 
-def apply_plan(index_path: Path, plan: UpdatePlan) -> None:
-    """将更新计划应用到本地 JSON 索引，模拟增量写入与删除。"""
+# 模拟重训练策略
+class RetrainingPolicy:
+    def __init__(self, threshold=0.1):
+        self.threshold = threshold
 
-    if index_path.exists():
-        data = json.loads(index_path.read_text(encoding="utf-8"))
-    else:
-        data = {}
+    def check_for_retraining(self, total_documents, updated_documents):
+        updated_ratio = len(updated_documents) / total_documents
+        print(f"Updated Ratio: {updated_ratio:.2f}")
+        
+        if updated_ratio > self.threshold:
+            print("Triggering retraining due to high document updates!")
+        else:
+            print("No retraining needed.")
 
-    for record in plan.new_docs + plan.updated_docs:
-        data[record.doc_id] = {
-            "text": record.text,
-            "embedding": record.embedding,
-            "updated_at": record.updated_at,
-        }
-    for doc_id in plan.removed_doc_ids:
-        data.pop(doc_id, None)
-
-    index_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-def simulate_retraining(plan: UpdatePlan, log_path: Path) -> None:
-    """根据计划决定是否启动重训练，并记录审计日志。"""
-
-    log = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "need_retrain": plan.need_retrain,
-        "new_docs": [doc.doc_id for doc in plan.new_docs],
-        "updated_docs": [doc.doc_id for doc in plan.updated_docs],
-        "removed_docs": plan.removed_doc_ids,
-    }
-    log_path.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
-    if plan.need_retrain:
-        print("触发模型重训练：建议重新训练检索器或重排序模型。")
-    else:
-        print("无需立即重训练，可累计更多变更后再执行。")
-
-
-def load_existing_index(index_path: Path) -> Dict[str, DocumentRecord]:
-    """加载历史索引，便于对比。"""
-
-    if not index_path.exists():
-        return {}
-    raw = json.loads(index_path.read_text(encoding="utf-8"))
-    return {
-        doc_id: DocumentRecord(
-            doc_id=doc_id,
-            text=item["text"],
-            embedding=item["embedding"],
-            updated_at=item.get("updated_at", datetime.utcnow().isoformat()),
-        )
-        for doc_id, item in raw.items()
-    }
-
-
-def parse_args() -> argparse.Namespace:
-    """命令行参数：指定旧索引、最新语料与输出路径。"""
-
-    parser = argparse.ArgumentParser(description="知识库增量更新策略演示")
-    parser.add_argument("index", type=Path, help="现有索引 JSON 路径")
-    parser.add_argument("corpus", type=Path, help="最新语料 JSON，键为 doc_id，值为文本")
-    parser.add_argument("--log", type=Path, default=Path("update_log.json"), help="更新日志输出路径")
-    return parser.parse_args()
-
-
-def main() -> None:
-    """脚本入口：检测变更并应用更新计划。"""
-
-    args = parse_args()
-    old_index = load_existing_index(args.index)
-    new_corpus = json.loads(args.corpus.read_text(encoding="utf-8"))
-    plan = detect_changes(old_index, new_corpus)
-    apply_plan(args.index, plan)
-    simulate_retraining(plan, args.log)
-    print("新增文档：", [doc.doc_id for doc in plan.new_docs])
-    print("更新文档：", [doc.doc_id for doc in plan.updated_docs])
-    print("删除文档：", plan.removed_doc_ids)
-
-
-if __name__ == "__main__":
-    main()
+# 检查是否触发重训练
+retraining_policy = RetrainingPolicy(threshold=0.1)
+retraining_policy.check_for_retraining(len(documents), updated_documents)

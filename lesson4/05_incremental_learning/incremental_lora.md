@@ -30,6 +30,14 @@ $$
 3. 运行脚本后，保存的 `./outputs/incremental_lora` 包含增量适配器，可在推理时加载。
 4. 通过对比增量前后的旧领域性能，验证灾难性遗忘是否缓解。
 
+```python 
+def kl_reg_loss(new_logits: torch.Tensor, old_logits: torch.Tensor, coeff: float) -> torch.Tensor:
+    new_log_probs = torch.log_softmax(new_logits, dim=-1)
+    old_log_probs = torch.log_softmax(old_logits, dim=-1)
+    kl = torch.nn.functional.kl_div(new_log_probs, old_log_probs, reduction="batchmean", log_target=True)
+    return coeff * kl
+```
+
 ## 深入讨论
 - 如果旧领域数据保密，是否可以使用旧模型生成伪样本作为重放数据？
 - KL 系数过大可能抑制新知识学习，应如何动态调整？

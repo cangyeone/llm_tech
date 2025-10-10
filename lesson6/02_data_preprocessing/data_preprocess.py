@@ -1,130 +1,99 @@
-"""课程实验 2：数据预处理与向量化流程
-
-本脚本展示如何对原始文档进行分块、清洗，并使用 Sentence-BERT
-生成文本向量，同时提供质量监控指标，确保知识库数据可控可靠。
+# -*- coding: utf-8 -*-
 """
-from __future__ import annotations
+教程：RAG 文档分块与 Sentence-BERT 向量化
+- 文档分块：按窗口大小与重叠度切分长文本
+- 使用 Sentence-BERT 生成句子嵌入并保存为文件
+- 评估分块与向量范数对召回质量的影响
 
-import argparse
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Iterable, List
+Usage:
+    python rag_document_chunking.py
+"""
 
-import numpy as np
+import os
+import torch
 from sentence_transformers import SentenceTransformer
+import numpy as np
+from sklearn.preprocessing import normalize
 
+# ===== 1. 文档分块参数 =====
+WINDOW_SIZE = 100  # 每个分块的最大单词数
+OVERLAP_SIZE = 50  # 分块之间的重叠单词数
+MIN_CHUNK_LENGTH = 20  # 最小块大小（以单词为单位）
 
-@dataclass
-class PreprocessConfig:
-    """数据预处理的核心超参数。"""
+# ===== 2. 加载 Sentence-BERT 模型 =====
+def load_model():
+    model = SentenceTransformer('./Qwen/paraphrase')  # 选择一个小型的句子模型
+    return model
 
-    chunk_size: int = 300
-    chunk_overlap: int = 50
-    min_token: int = 20
-    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
-
-
-def read_corpus(path: Path) -> List[str]:
-    """读取文本语料，默认按行拆分。"""
-
-    with path.open("r", encoding="utf-8") as f:
-        return [line.strip() for line in f if line.strip()]
-
-
-def chunk_documents(lines: Iterable[str], config: PreprocessConfig) -> List[str]:
-    """按照固定窗口滑动切分文本，以兼顾上下文与召回率。"""
-
-    chunks: List[str] = []
-    buffer: List[str] = []
-    total_chars = 0
-    for line in lines:
-        buffer.append(line)
-        total_chars += len(line)
-        if total_chars >= config.chunk_size:
-            chunk = "\n".join(buffer)
-            if len(chunk) >= config.min_token:
-                chunks.append(chunk)
-            # 处理重叠窗口，保留末尾若干字符作为上下文
-            overlap_chars = config.chunk_overlap
-            joined = "\n".join(buffer)
-            buffer = [joined[-overlap_chars:]] if overlap_chars > 0 else []
-            total_chars = sum(len(item) for item in buffer)
-    # 收尾
-    if buffer and len("\n".join(buffer)) >= config.min_token:
-        chunks.append("\n".join(buffer))
+# ===== 3. 文档分块函数（包括重叠） =====
+def chunk_document(text: str, window_size=WINDOW_SIZE, overlap_size=OVERLAP_SIZE, min_length=MIN_CHUNK_LENGTH):
+    # 按空格分词
+    words = text.split()
+    chunks = []
+    for i in range(0, len(words), window_size - overlap_size):
+        chunk = words[i:i + window_size]
+        if len(chunk) >= min_length:
+            chunks.append(" ".join(chunk))
     return chunks
 
-
-def generate_embeddings(chunks: List[str], config: PreprocessConfig) -> np.ndarray:
-    """调用 Sentence-BERT 模型生成文本向量。"""
-
-    model = SentenceTransformer(config.model_name)
-    embeddings = model.encode(chunks, show_progress_bar=True, convert_to_numpy=True)
-    return embeddings.astype(np.float32)
-
-
-def quality_report(chunks: List[str], embeddings: np.ndarray) -> str:
-    """输出分块长度、向量范数等指标，辅助课堂讨论。"""
-
-    lengths = np.array([len(chunk) for chunk in chunks], dtype=np.float32)
+# ===== 4. 计算嵌入向量并保存 =====
+def compute_and_save_embeddings(chunks, model):
+    # 使用 Sentence-BERT 计算每个分块的嵌入向量
+    embeddings = model.encode(chunks)
+    
+    # 保存为 Numpy 数组
+    embeddings_file = "outputs/document_embeddings.npy"
+    np.save(embeddings_file, embeddings)
+    print(f"Embeddings saved to {embeddings_file}")
+    
+    # 向量范数计算（L2 norm）
     norms = np.linalg.norm(embeddings, axis=1)
-    report = [
-        "=== 数据质量报告 ===",
-        f"分块数量：{len(chunks)}",
-        f"平均长度：{lengths.mean():.1f} 字符 (± {lengths.std():.1f})",
-        f"向量维度：{embeddings.shape[1]}",
-        f"平均向量范数：{norms.mean():.4f} (± {norms.std():.4f})",
-        "建议检查异常短/长片段，避免影响召回率。",
-    ]
-    return "\n".join(report)
+    print(f"Vector norms (L2 norm) calculated for {len(norms)} chunks.")
+    
+
+    for i in range(len(norms)):  # 使用 norms 的长度来遍历
+        print(f"Chunk {i+1} L2 norm: {norms[i]:.3f}")
+    
+    # 返回嵌入和范数
+    return embeddings, norms
 
 
-def save_embeddings(chunks: List[str], embeddings: np.ndarray, output_dir: Path) -> None:
-    """保存分块文本与对应向量，便于后续构建向量库。"""
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    text_path = output_dir / "chunks.txt"
-    vector_path = output_dir / "embeddings.npy"
+# ===== 5. 示例文档 =====
+def example_document():
+    text = """
+    Retrieval-Augmented Generation (RAG) is a model architecture designed to improve the performance of text generation tasks.
+    By combining pre-trained generative models with retrieval mechanisms, RAG enables the generation of more relevant and informative responses.
+    The model retrieves documents or passages from a knowledge base during the generation process, providing a way to incorporate external information
+    dynamically into the generation process. The goal of RAG is to leverage large-scale pre-trained models while simultaneously allowing for
+    the incorporation of up-to-date, task-specific knowledge from external sources.
+    """
+    return text
 
-    with text_path.open("w", encoding="utf-8") as text_file:
-        for chunk in chunks:
-            text_file.write(chunk.replace("\n", " ") + "\n")
+# ===== 6. 主函数 =====
+def main():
+    # 1) 加载模型
+    model = load_model()
+    
+    # 2) 示例文档分块
+    doc = example_document()
+    chunks = chunk_document(doc)
+    
+    # 打印分块信息
+    print(f"Document has been chunked into {len(chunks)} chunks.")
+    for i, chunk in enumerate(chunks[:5]):  # 显示前5个分块
+        print(f"Chunk {i+1}: {chunk[:60]}...")  # 截取部分显示前60字符
+    
+    # 3) 计算文本嵌入并保存
+    embeddings, norms = compute_and_save_embeddings(chunks, model)
+    
+    # 4) 打印一些质量指标
+    avg_norm = np.mean(norms)
+    print(f"Average L2 norm of embeddings: {avg_norm:.3f}")
 
-    np.save(vector_path, embeddings)
-
-    print(f"已保存分块文本：{text_path}")
-    print(f"已保存向量矩阵：{vector_path}")
-
-
-def main(input_path: Path, output_dir: Path, config: PreprocessConfig) -> None:
-    """串联文档读取、分块、向量化与报告输出。"""
-
-    lines = read_corpus(input_path)
-    chunks = chunk_documents(lines, config)
-    embeddings = generate_embeddings(chunks, config)
-    save_embeddings(chunks, embeddings, output_dir)
-    print(quality_report(chunks, embeddings))
-
+    # 可选：返回前5个分块及其对应的嵌入向量
+    for i in range(2):
+        print(f"Chunk {i+1} L2 norm: {norms[i]:.3f}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="RAG 文档预处理与向量化")
-    parser.add_argument("input", type=Path, help="原始语料路径（UTF-8 文本）")
-    parser.add_argument("output", type=Path, help="输出目录")
-    parser.add_argument("--chunk_size", type=int, default=300, help="分块字符数")
-    parser.add_argument("--chunk_overlap", type=int, default=50, help="分块重叠字符数")
-    parser.add_argument("--min_token", type=int, default=20, help="过滤短片段的最小字符数")
-    parser.add_argument(
-        "--model_name",
-        type=str,
-        default="sentence-transformers/all-MiniLM-L6-v2",
-        help="用于生成向量的 Sentence-BERT 模型",
-    )
-    args = parser.parse_args()
-
-    config = PreprocessConfig(
-        chunk_size=args.chunk_size,
-        chunk_overlap=args.chunk_overlap,
-        min_token=args.min_token,
-        model_name=args.model_name,
-    )
-    main(input_path=args.input, output_dir=args.output, config=config)
+    main()

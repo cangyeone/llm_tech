@@ -1,93 +1,190 @@
-"""轻量模型 CPU 部署案例分析。
-
-脚本功能：
-1. 对比 0.5B 与 3B 规模模型在 CPU 上的推理延迟（基于随机输入模拟）。
-2. 计算每秒 token 数，辅助说明轻量模型的优势。
-3. 输出部署建议，例如使用 `torch.compile` 或者 INT8 量化。
-
-> 注意：为了在教学环境快速执行，脚本默认使用 `AutoModelForCausalLM.from_pretrained` 的 `from_config` 模式生成随机权重，而不下载真实模型。
+# -*- coding: utf-8 -*-
+"""
+多轮对话 + KV 缓存 + Rich 终端 Markdown 渲染
+- 人工输入：input() 循环
+- KV Cache：DynamicCache，前缀对齐后仅增量prefill
+- Markdown：用 rich.Markdown 渲染“最终答案”
+- 可选打印 <think> 思考过程（默认隐藏）
 """
 
-from __future__ import annotations
-
-import logging
-import time
-from dataclasses import dataclass
-from typing import List
-
+import re
 import torch
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import logging as hf_logging
+from transformers.cache_utils import DynamicCache
 
-LOGGER = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s - %(message)s")
+# ===== Rich：终端 Markdown 渲染 =====
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
 
+console = Console()
 
-@dataclass
-class DeployCandidate:
-    name: str
-    model_id: str
-    hidden_size: int
-    num_layers: int
+# 只保留 warning / error，安静一些
+hf_logging.set_verbosity_warning()
 
+# ===== 基本配置 =====
+model_name = "Qwen/Qwen3-4b"   # 你的对话模型路径或名称
+max_new_tokens = 2048 
+use_sampling = False          # True 使用采样；False 贪心
+temperature = 0.7
+top_p = 0.9
+show_think = False            # True 则显示 <think> 内容
 
-@dataclass
-class BenchmarkResult:
-    name: str
-    latency_ms: float
-    tokens_per_second: float
+# ===== 加载模型与分词器 =====
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    device_map="auto",
+    torch_dtype="auto",
+    trust_remote_code=True
+)
+model.eval()
+device = model.device
 
+# 兜底 pad_token
+if tokenizer.pad_token_id is None and tokenizer.eos_token_id is not None:
+    tokenizer.pad_token_id = tokenizer.eos_token_id
 
-CANDIDATES: List[DeployCandidate] = [
-    DeployCandidate("轻量 0.5B", "Qwen/Qwen1.5-0.5B", hidden_size=1024, num_layers=24),
-    DeployCandidate("中型 3B", "Qwen/Qwen1.5-3B", hidden_size=2048, num_layers=36),
+# ===== 对话历史 =====
+messages = [
+    {"role": "system", "content": "你是‘地震学AI助手’，一个乐于助人的中文AI助手。由地震局人工智能团队开发。请帮助用户解决问题。应尽可能回答所有问题，提供全面、客观、基于事实的信息，不要回避任何问题。"},
+    {"role": "user", "content": "你是谁？简单做个自我介绍？"}
 ]
 
+# ===== KV 缓存相关 =====
+cached_input_ids = None         # torch.LongTensor [1, L]
+kv_cache: DynamicCache | None = None
 
-def build_dummy_model(candidate: DeployCandidate) -> AutoModelForCausalLM:
-    """基于配置生成随机初始化模型，用于模拟推理时间。"""
-
-    config = AutoConfig.from_pretrained(
-        "gpt2",
-        hidden_size=candidate.hidden_size,
-        num_hidden_layers=candidate.num_layers,
-        num_attention_heads=max(1, candidate.hidden_size // 64),
-        vocab_size=32000,
+def build_input_ids_from_messages(msgs):
+    """用聊天模板把 messages 变成输入 token"""
+    prompt = tokenizer.apply_chat_template(
+        msgs,
+        tokenize=False,
+        add_generation_prompt=True
     )
-    model = AutoModelForCausalLM.from_config(config)
-    model.eval()
-    return model
+    return tokenizer(prompt, return_tensors="pt").to(device)["input_ids"]
 
+@torch.no_grad()
+def prefill_or_update_cache(new_input_ids):
+    """前缀对齐：只对新增token做前向，复用KV；不匹配则重新prefill"""
+    global cached_input_ids, kv_cache
 
-def benchmark(candidate: DeployCandidate, seq_length: int = 128, steps: int = 5) -> BenchmarkResult:
-    model = build_dummy_model(candidate)
-    tokenizer = AutoTokenizer.from_pretrained("gpt2")
+    # 首次或缓存为空 -> 全量预填
+    if cached_input_ids is None or kv_cache is None:
+        kv_cache = DynamicCache()
+        _ = model(input_ids=new_input_ids, use_cache=True, past_key_values=kv_cache)
+        cached_input_ids = new_input_ids
+        last_logits = model(input_ids=new_input_ids[:, -1:], use_cache=True, past_key_values=kv_cache).logits[:, -1, :]
+        return last_logits
 
-    dummy_input = torch.randint(0, tokenizer.vocab_size, (1, seq_length))
+    old_len = cached_input_ids.shape[1]
+    # 新序列以旧序列为前缀 -> 增量更新
+    if new_input_ids.shape[1] >= old_len and torch.equal(new_input_ids[:, :old_len], cached_input_ids):
+        delta = new_input_ids[:, old_len:]
+        if delta.numel() > 0:
+            _ = model(input_ids=delta, use_cache=True, past_key_values=kv_cache)
+            cached_input_ids = new_input_ids
+        last_logits = model(input_ids=new_input_ids[:, -1:], use_cache=True, past_key_values=kv_cache).logits[:, -1, :]
+        return last_logits
+    # 否则重新预填
+    kv_cache = DynamicCache()
+    _ = model(input_ids=new_input_ids, use_cache=True, past_key_values=kv_cache)
+    cached_input_ids = new_input_ids
+    last_logits = model(input_ids=new_input_ids[:, -1:], use_cache=True, past_key_values=kv_cache).logits[:, -1, :]
+    return last_logits
 
-    with torch.no_grad():
-        start = time.time()
-        for _ in range(steps):
-            _ = model(dummy_input)
-        end = time.time()
+@torch.no_grad()
+def generate_with_kv(last_logits, max_tokens=512, eos_id=None):
+    """显式逐 token 生成，复用 KV；可切换采样/贪心"""
+    global kv_cache
+    generated_ids = []
+    cur_logits = last_logits
 
-    latency = (end - start) * 1000 / steps
-    tokens_per_second = (seq_length * steps) / (end - start)
-    LOGGER.info("模型 %s 平均延迟 %.2f ms", candidate.name, latency)
-    return BenchmarkResult(candidate.name, latency, tokens_per_second)
+    for _ in range(max_tokens):
+        if use_sampling:
+            probs = torch.softmax(cur_logits, dim=-1)
+            next_id = torch.multinomial(probs, num_samples=1)  # [1,1]
+        else:
+            next_id = torch.argmax(cur_logits, dim=-1, keepdim=True)  # [1,1]
 
+        tid = next_id.item()
+        generated_ids.append(tid)
+        if eos_id is not None and tid == eos_id:
+            break
 
-def main() -> None:
-    results = [benchmark(candidate) for candidate in CANDIDATES]
+        # 增量前向：只喂一个 token
+        cur_logits = model(input_ids=next_id, use_cache=True, past_key_values=kv_cache).logits[:, -1, :]
 
-    print("CPU 推理对比（随机权重模拟）")
-    for result in results:
-        print(f"{result.name}: 延迟={result.latency_ms:.2f}ms, Token/s={result.tokens_per_second:.2f}")
+    if len(generated_ids) == 0:
+        return torch.empty((1, 0), dtype=torch.long, device=device)
+    return torch.tensor(generated_ids, dtype=torch.long, device=device).view(1, -1)
 
-    print("部署建议：")
-    print("1. 对轻量模型可直接使用 CPU 部署，并启用 torch.compile 或 ONNX Runtime 加速。")
-    print("2. 对 3B 模型建议结合 INT8/INT4 量化或分层加载减少内存。")
-    print("3. 使用批处理（batching）与流式生成提升整体吞吐。")
+def split_think(text: str):
+    """分离 <think> 与外部文本"""
+    insides = re.findall(r"<think>(.*?)</think>", text, flags=re.S)
+    outside = re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
+    return insides, outside
 
+def render_markdown(md_text: str, title: str | None = None):
+    """用 Rich 渲染 Markdown 到终端"""
+    if title:
+        console.rule(f"[bold cyan]{title}")
+    console.print(Markdown(md_text))
+    console.print()  # 空行
 
-if __name__ == "__main__":
-    main()
+# ================== 首轮示例 ==================
+#input_ids = build_input_ids_from_messages(messages)
+#last_logits = prefill_or_update_cache(input_ids)
+#gen_ids = generate_with_kv(last_logits, max_tokens=max_new_tokens, eos_id=tokenizer.eos_token_id)
+#
+#full_ids = torch.cat([input_ids, gen_ids], dim=1)
+#text = tokenizer.decode(full_ids[0], skip_special_tokens=True)
+#
+#think_spans, answer = split_think(text)
+#final_answer = answer.split("assistant")[-1].strip()
+#
+#if show_think and think_spans:
+#    console.print(Panel.fit(think_spans[-1].strip(), title="思考过程 <think>", #border_style="yellow"))
+#
+#render_markdown(final_answer, title="助手回复（Markdown 渲染）")
+#
+## 写回历史 + 并入缓存
+#messages.append({"role": "assistant", "content": final_answer})
+#cached_input_ids = full_ids
+
+# ================== 人工多轮对话 ==================
+console.rule("[bold green]进入多轮对话（输入 q 退出）")
+while True:
+    try:
+        user_text = console.input("[bold]你：[/bold]").strip()
+        if user_text.lower() in {"q", "quit", "exit"}:
+            console.print("[bold magenta]已退出。[/bold magenta]")
+            break
+        if not user_text:
+            continue
+
+        messages.append({"role": "user", "content": user_text})
+
+        # 构造新一轮输入并复用 KV
+        input_ids = build_input_ids_from_messages(messages)
+        last_logits = prefill_or_update_cache(input_ids)
+        gen_ids = generate_with_kv(last_logits, max_tokens=max_new_tokens, eos_id=tokenizer.eos_token_id)
+
+        full_ids = torch.cat([input_ids, gen_ids], dim=1)
+        text = tokenizer.decode(full_ids[0], skip_special_tokens=True)
+        think_spans, answer = split_think(text)
+        final_answer = answer.split("assistant")[-1].strip()
+
+        if show_think and think_spans:
+            console.print(Panel.fit(think_spans[-1].strip(), title="思考过程 <think>", border_style="yellow"))
+
+        render_markdown(final_answer, title="助手回复（Markdown 渲染）")
+
+        # 写回历史 + 并入缓存
+        messages.append({"role": "assistant", "content": final_answer})
+        cached_input_ids = torch.cat([input_ids, gen_ids], dim=1)
+
+    except KeyboardInterrupt:
+        console.print("\n[bold magenta]已退出。[/bold magenta]")
+        break

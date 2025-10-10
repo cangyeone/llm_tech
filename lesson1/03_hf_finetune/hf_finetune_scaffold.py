@@ -43,8 +43,8 @@ class CliConfig:
 
 def parse_args() -> CliConfig:
     parser = argparse.ArgumentParser(description="Hugging Face 微调脚手架")
-    parser.add_argument("--data", type=Path, required=True, help="JSONL 数据文件路径")
-    parser.add_argument("--model", type=str, required=True, help="模型名称，例如 Qwen/Qwen2-1.5B-Instruct")
+    parser.add_argument("--data", type=Path, default="outputs/examples_translation_en_zh.jsonl", help="JSONL 数据文件路径")
+    parser.add_argument("--model", type=str, default="Qwen/Qwen3-4b", help="模型名称，例如 Qwen/Qwen3-4b")
     parser.add_argument("--output", type=Path, default=Path("./outputs/hf_trainer"))
     parser.add_argument("--lr", type=float, default=2e-5, help="学习率")
     parser.add_argument("--batch", type=int, default=2, help="每卡 batch size")
@@ -114,10 +114,6 @@ def main() -> None:
         num_train_epochs=config.num_train_epochs,
         learning_rate=config.learning_rate,
         logging_steps=10,
-        evaluation_strategy="steps",
-        eval_steps=20,
-        save_strategy="no",
-        report_to=[],
     )
 
     trainer = Trainer(

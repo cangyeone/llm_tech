@@ -1,118 +1,98 @@
-"""课程实验 3：构建向量库与语义检索
-
-本脚本演示如何加载预处理得到的文本片段与向量，构建 FAISS 索引，
-并提供简单的语义检索接口，帮助学员理解检索阶段的关键步骤。
-"""
-from __future__ import annotations
-
-import argparse
-from dataclasses import dataclass
-from pathlib import Path
-from typing import List, Tuple
-
-import faiss
+import os
 import numpy as np
+import faiss
+from sentence_transformers import SentenceTransformer
 
+# ===== 1. 加载 Sentence-BERT 模型 =====
+def load_model():
+    model = SentenceTransformer('./Qwen/paraphrase')  # 选择一个小型的句子模型
+    return model
 
-@dataclass
-class VectorStore:
-    """封装 FAISS 索引与原始文档的映射关系。"""
+# ===== 2. 文档分块函数（包括重叠） =====
+def chunk_document(text: str, window_size=100, overlap_size=50, min_length=20):
+    words = text.split()
+    chunks = []
+    for i in range(0, len(words), window_size - overlap_size):
+        chunk = words[i:i + window_size]
+        if len(chunk) >= min_length:
+            chunks.append(" ".join(chunk))
+    return chunks
 
-    index: faiss.IndexFlatIP
-    documents: List[str]
-    embeddings: np.ndarray
-
-    def search(self, query_embedding: np.ndarray, top_k: int = 5) -> List[Tuple[str, float]]:
-        """执行向量检索并返回文档与得分。"""
-
-        query = query_embedding.reshape(1, -1).astype(np.float32)
-        scores, indices = self.index.search(query, top_k)
-        results = []
-        for score, idx in zip(scores[0], indices[0]):
-            if idx == -1:
-                continue
-            doc = self.documents[idx]
-            results.append((doc, float(score)))
-        return results
-
-
-def load_preprocessed_data(text_path: Path, embedding_path: Path) -> Tuple[List[str], np.ndarray]:
-    """加载已保存的文本分块与向量矩阵。"""
-
-    with text_path.open("r", encoding="utf-8") as f:
-        documents = [line.strip() for line in f if line.strip()]
-    embeddings = np.load(embedding_path)
-    return documents, embeddings.astype(np.float32)
-
-
-def build_faiss_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:
-    """基于内积相似度构建向量索引。"""
-
-    dim = embeddings.shape[1]
-    index = faiss.IndexFlatIP(dim)
-    faiss.normalize_L2(embeddings)
+# ===== 3. 使用 FAISS 存储向量 =====
+def build_faiss_index(embeddings: np.ndarray, dim: int):
+    # 创建 FAISS 索引
+    index = faiss.IndexFlatL2(dim)  # L2 距离（欧几里得距离）
+    
+    # 将嵌入向量添加到索引中
     index.add(embeddings)
     return index
 
+# ===== 4. 基于 FAISS 的相似度检索 =====
+def search_with_faiss(index, query_embedding, k=5):
+    # 使用 FAISS 进行最近邻检索
+    D, I = index.search(query_embedding, k)  # D是距离，I是索引
+    return D, I
 
-def encode_query(query: str, embedding_matrix: np.ndarray) -> np.ndarray:
-    """课堂示例：使用文档均值模拟查询向量，实际使用需接入编码模型。"""
+# ===== 5. 示例文档（多条） =====
+def example_document():
+    # 添加十多条示例文档
+    text_list = [
+        "Retrieval-Augmented Generation (RAG) is a model architecture designed to improve the performance of text generation tasks.",
+        "By combining pre-trained generative models with retrieval mechanisms, RAG enables the generation of more relevant and informative responses.",
+        "The model retrieves documents or passages from a knowledge base during the generation process, providing a way to incorporate external information dynamically into the generation process.",
+        "RAG helps to solve issues with traditional text generation models by bringing in contextual information at generation time.",
+        "The primary goal of RAG is to leverage large-scale pre-trained models while simultaneously allowing for the incorporation of up-to-date, task-specific knowledge from external sources.",
+        "A key feature of RAG is its ability to retrieve and generate content in real-time, making it suitable for applications requiring fast adaptation to new data.",
+        "To improve the relevance of generated content, RAG models fetch data from an external corpus before performing the generation task.",
+        "RAG can be used in dialogue systems, recommendation systems, and knowledge extraction tasks, among others.",
+        "The success of RAG depends on the quality of the retrieval process and how effectively the external information is integrated into the model.",
+        "One challenge with RAG is ensuring that the retrieval mechanism is fast and accurate enough for real-time applications.",
+        "RAG combines the strengths of retrieval-based and generation-based methods, making it versatile for a wide range of NLP tasks.",
+        "The architecture of RAG includes both a retriever component that fetches relevant documents and a generator component that uses these documents to produce responses.",
+        "RAG has been shown to outperform traditional generative models on certain benchmark tasks by incorporating more domain-specific knowledge."
+    ]
+    return text_list
 
-    # 这里采用简单的随机噪声+均值作为示范，课堂上可替换为 Sentence-BERT/Qwen 编码
-    mean_vector = embedding_matrix.mean(axis=0)
-    rng = np.random.default_rng(abs(hash(query)) % (2**32))
-    noise = rng.standard_normal(size=mean_vector.shape).astype(np.float32) * 0.01
-    return mean_vector + noise
+# ===== 6. 主函数 =====
+def main():
+    # 1) 加载 Sentence-BERT 模型
+    model = load_model()
 
+    # 2) 示例文档分块
+    texts = example_document()
+    all_chunks = []
+    for doc in texts:
+        chunks = chunk_document(doc)
+        all_chunks.extend(chunks)
 
-def create_vector_store(text_path: Path, embedding_path: Path) -> VectorStore:
-    """整合加载、构建索引与包装操作。"""
+    # 打印分块信息
+    print(f"Document has been chunked into {len(all_chunks)} chunks.")
+    for i, chunk in enumerate(all_chunks[:5]):  # 显示前5个分块
+        print(f"Chunk {i+1}: {chunk[:60]}...")  # 截取部分显示前60字符
 
-    documents, embeddings = load_preprocessed_data(text_path, embedding_path)
-    index = build_faiss_index(embeddings.copy())
-    return VectorStore(index=index, documents=documents, embeddings=embeddings)
+    # 3) 计算文本嵌入
+    embeddings = model.encode(all_chunks)
 
+    # 将嵌入向量保存为 numpy 数组
+    embeddings = np.array(embeddings)
 
-def interactive_demo(store: VectorStore, top_k: int) -> None:
-    """提供命令行交互式查询体验。"""
+    # ===== 4) 使用 FAISS 创建索引 =====
+    index = build_faiss_index(embeddings, dim=embeddings.shape[1])
 
-    print("输入问题即可获取相似文档，输入 exit 退出。")
-    while True:
-        query = input("用户问题> ").strip()
-        if query.lower() in {"exit", "quit"}:
-            print("结束演示。")
-            break
-        query_vec = encode_query(query, store.embeddings)
-        faiss.normalize_L2(query_vec.reshape(1, -1))
-        results = store.search(query_vec, top_k=top_k)
-        print("\nTop-{} 检索结果：".format(top_k))
-        for rank, (doc, score) in enumerate(results, start=1):
-            print(f"[{rank}] 相似度 {score:.3f}: {doc[:120]}")
-        print()
+    # 5) 假设我们有一个查询
+    query = "What is RAG?"
+    query_embedding = model.encode([query])  # 将查询转换为向量
 
+    # ===== 6) 使用 FAISS 检索相似块 =====
+    D, I = search_with_faiss(index, query_embedding, k=3)
 
-def main(text_path: Path, embedding_path: Path, top_k: int, interactive: bool) -> None:
-    """构建向量库并按需触发互动式检索。"""
-
-    store = create_vector_store(text_path, embedding_path)
-    print(f"已加载 {len(store.documents)} 条文档片段，向量维度 {store.embeddings.shape[1]}")
-    if interactive:
-        interactive_demo(store, top_k)
-    else:
-        query_vec = encode_query("RAG 架构介绍", store.embeddings)
-        faiss.normalize_L2(query_vec.reshape(1, -1))
-        results = store.search(query_vec, top_k=top_k)
-        print("示例查询结果：")
-        for rank, (doc, score) in enumerate(results, start=1):
-            print(f"[{rank}] 相似度 {score:.3f}: {doc[:120]}")
-
+    # 输出检索结果
+    print("\nTop 3 most similar chunks:")
+    for i in range(len(I[0])):
+        print(f"Rank {i+1}:")
+        print(f"Chunk: {all_chunks[I[0][i]]}")
+        print(f"Distance: {D[0][i]:.4f}")
+        print("=" * 50)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="构建 FAISS 向量库并执行语义检索")
-    parser.add_argument("text", type=Path, help="分块文本路径")
-    parser.add_argument("embeddings", type=Path, help="向量矩阵路径")
-    parser.add_argument("--top_k", type=int, default=5, help="返回结果数量")
-    parser.add_argument("--interactive", action="store_true", help="是否开启命令行交互")
-    args = parser.parse_args()
-
-    main(text_path=args.text, embedding_path=args.embeddings, top_k=args.top_k, interactive=args.interactive)
+    main()
