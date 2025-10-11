@@ -1,36 +1,159 @@
-# 教程：Hugging Face Trainer 微调脚手架
+# 基于 Hugging Face Trainer 的微调脚手架
 
-## 学习目标
-- 了解如何使用命令行参数快速配置微调实验。
-- 掌握将 JSONL 指令数据集加载为 `datasets.Dataset` 并完成训练/验证切分。
-- 熟悉 `Trainer` 的关键参数，如学习率、评估步数与数据整理器配置。
+本脚本用于快速搭建一个**监督微调（Supervised Fine-tuning, SFT）**实验，帮助理解指令微调数据的加载、分词与训练流程。  
+它通过封装 `transformers.Trainer`，自动完成数据读取、模型加载与训练流程，非常适合教学与小规模实验。
 
-## 背景原理
-监督微调的训练目标仍是最小化交叉熵损失。通过 `Trainer` 封装的优化器与调度器，我们可以在固定迭代次数内更新参数：
+---
 
-$$
-\theta^{(t+1)} = \theta^{(t)} - \eta \nabla_\theta \mathcal{L}_{\text{SFT}}(\theta^{(t)}),
-$$
+## 🌟 功能概览
 
-其中 $\eta$ 为学习率。脚手架为课程提供统一入口，保证实验可重复。
+- 支持加载 **JSONL 指令数据集**
+- 自动划分训练集 / 验证集
+- 自动设置 tokenizer 的 PAD token
+- 支持命令行调整超参数（学习率、批大小、轮次等）
+- 输出验证集指标
+- 一行命令启动完整训练流程
 
-## 代码结构解析
-- `CliConfig` 与 `parse_args`：解析命令行输入，支持自定义数据路径、模型、输出目录及超参数。
-- `load_dataset`：读取 JSONL 文件并转为 `Dataset`，方便进一步处理。
-- `format_example`：将 instruction/input/output 拼接成模型可学习的 prompt。
-- `tokenize_dataset`：统一调用 `tokenizer`，设置最大长度与填充策略。
-- `main`：完成数据切分、模型加载、训练参数配置、训练与评估全过程。
+---
 
-## 使用说明
-1. 准备 JSONL 指令数据，字段需包含 `instruction`、`input`、`output`。
-2. 执行示例命令：
-   ```bash
-   python hf_finetune_scaffold.py --data data.jsonl --model Qwen/Qwen1.5-0.5B --lr 1e-5 --epochs 3
-   ```
-3. 查看日志中训练/验证损失，必要时修改 `eval_steps` 或 `batch` 以适配硬件。
-4. 如果要在多卡环境运行，可改用 `accelerate launch` 或 `torchrun` 包裹脚本。
+## 📦 依赖环境
 
-## 拓展思考
-- 如何将 `TrainingArguments` 中的 `lr_scheduler_type` 调整为余弦衰减以获得更平滑的收敛？
-- 可以将数据增强逻辑（如同义句替换）融合到 `tokenize_dataset` 之前的映射流程中吗？
-- 若要保存最佳模型权重，应开启 `save_strategy="steps"` 并结合 `load_best_model_at_end`，如何选择合适的 `save_steps`？
+```bash
+pip install transformers datasets torch
+```
+
+---
+
+## 🚀 使用方法
+
+### 命令行运行
+
+```bash
+python lesson1/03_hf_finetune/hf_finetune_scaffold.py --data ./examples.jsonl --model Qwen/Qwen1.5-0.5B
+```
+
+可选参数：
+
+| 参数名 | 默认值 | 说明 |
+|--------|--------|------|
+| `--data` | `outputs/examples_translation_en_zh.jsonl` | JSONL 格式的指令数据文件 |
+| `--model` | `Qwen/Qwen3-4b` | Hugging Face 模型名称或路径 |
+| `--output` | `./outputs/hf_trainer` | 输出目录 |
+| `--lr` | `2e-5` | 学习率 |
+| `--batch` | `2` | 每卡 batch size |
+| `--epochs` | `1` | 训练轮数 |
+
+---
+
+## 🧩 数据格式要求
+
+输入文件应为 `.jsonl` 格式，每行一个样本：
+
+```json
+{"instruction": "翻译下面的句子", "input": "Hello world", "output": "你好，世界"}
+{"instruction": "解释以下概念", "input": "LoRA", "output": "一种低秩参数微调方法"}
+```
+
+脚本会自动将这三部分拼接成模型输入：
+
+```
+### 指令:
+<instruction>
+### 输入:
+<input>
+### 回答:
+<output>
+```
+
+---
+
+## 🧠 函数说明
+
+### `@dataclass CliConfig`
+保存命令行参数，包括：
+- `data_path`: 数据文件路径
+- `model_name`: 预训练模型名称
+- `output_dir`: 结果输出目录
+- `learning_rate`: 学习率
+- `batch_size`: 每卡 batch size
+- `num_train_epochs`: 训练轮数
+
+---
+
+### `parse_args() -> CliConfig`
+解析命令行参数，返回配置对象。
+
+**调用示例：**
+```python
+config = parse_args()
+print(config.model_name)
+```
+
+---
+
+### `load_dataset(path: Path) -> Dataset`
+读取 JSONL 文件并返回 `datasets.Dataset` 对象。  
+该函数会遍历每一行 JSON，转换为字典列表，再使用 `Dataset.from_list()` 构建。
+
+---
+
+### `format_example(example: Dict[str, str]) -> str`
+将样本的 `"instruction"`, `"input"`, `"output"` 字段拼接为可供模型训练的完整文本。
+
+---
+
+### `tokenize_dataset(dataset: Dataset, tokenizer)`
+使用 Hugging Face 分词器对数据集进行编码。  
+会自动进行：
+- 截断至 1024 token  
+- 填充至最大长度  
+- 移除原始字段  
+
+---
+
+### `main()`
+完整训练流程入口：
+1. 解析命令行参数  
+2. 加载并切分数据集（train/test）  
+3. 加载分词器与模型  
+4. 调用 `Trainer` 进行训练与评估  
+5. 输出验证集指标
+
+---
+
+## 📊 输出结果
+
+运行后将在 `--output` 指定目录下生成：
+
+- `trainer_state.json`: 训练状态信息  
+- `checkpoint-*`: 模型权重检查点  
+- `lora_rank_error.png`: 若含可视化部分  
+- 终端打印验证集指标（loss / perplexity）
+
+---
+
+## 🧪 教学提示
+
+- 可将 `train_test_split(test_size=0.2)` 修改为 `0.1` 加快训练速度。  
+- 若显存不足，可在命令行添加：
+  ```bash
+  export CUDA_VISIBLE_DEVICES=0
+  ```
+- 若模型较大，可启用 gradient checkpointing：
+  ```python
+  model.gradient_checkpointing_enable()
+  ```
+
+---
+
+## 📘 总结
+
+本脚本为教学设计，重点演示 Hugging Face 微调流程的五个核心要素：
+
+1. 数据格式化与拼接  
+2. 分词器适配与填充  
+3. 训练参数配置  
+4. 使用 `Trainer` 简化训练逻辑  
+5. 自动化训练与评估输出  
+
+通过此模板，可快速构建自己的 SFT / Instruction Tuning 实验。
