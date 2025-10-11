@@ -1,77 +1,317 @@
-# 教程：SFT 与指令微调理论实践
+# SFT 与指令微调（Instruction Tuning）教学脚本使用说明与函数文档
 
-## 学习目标
-- 理解监督微调（Supervised Fine-Tuning, SFT）与指令微调（Instruction Tuning）的数据格式差异。
-- 学会使用 Hugging Face `Trainer` 在小规模示例上复现两种格式的训练流程。
-- 掌握交叉熵损失在语言模型微调中的作用，并能分析损失曲线差异。
+> 版本：v1.0  
+> 适用脚本：`sft_basics.py`（你提供的教学代码）  
+> 运行环境：仅 CPU 可运行；如需 GPU 演示可配合 `accelerate launch`。  
+> 面向人群：教学/入门演示，帮助理解 **SFT** 与 **Instruction Tuning** 的数据格式差异及其对训练收敛的影响。
 
-## 背景原理
-SFT 的目标是最小化模型输出分布与标注答案之间的交叉熵损失：
+---
 
+## 目录
+- [SFT 与指令微调（Instruction Tuning）教学脚本使用说明与函数文档](#sft-与指令微调instruction-tuning教学脚本使用说明与函数文档)
+  - [目录](#目录)
+  - [快速开始](#快速开始)
+    - [1) 安装依赖](#1-安装依赖)
+    - [2) 保存脚本](#2-保存脚本)
+    - [3) 一键运行](#3-一键运行)
+  - [脚本总体流程](#脚本总体流程)
+  - [函数与类文档](#函数与类文档)
+    - [`FinetuneConfig`](#finetuneconfig)
+    - [`EXAMPLE_PAIRS`](#example_pairs)
+    - [`build_dataset`](#build_dataset)
+    - [`tokenize`](#tokenize)
+    - [`run_training`](#run_training)
+    - [入口主程序](#入口主程序)
+  - [数学原理与损失函数](#数学原理与损失函数)
+    - [自回归语言模型目标](#自回归语言模型目标)
+    - [交叉熵损失与标签屏蔽](#交叉熵损失与标签屏蔽)
+    - [SFT vs Instruction Tuning 的本质区别](#sft-vs-instruction-tuning-的本质区别)
+  - [运行与复现实验](#运行与复现实验)
+    - [CPU 直接运行](#cpu-直接运行)
+    - [GPU/多卡（可选）](#gpu多卡可选)
+    - [输出与日志](#输出与日志)
+  - [常见问题排查](#常见问题排查)
+  - [扩展建议](#扩展建议)
+  - [许可证](#许可证)
+
+---
+
+## 快速开始
+
+### 1) 安装依赖
+```bash
+pip install "transformers>=4.41" datasets torch
+# 可选：支持 GPU/分布式
+pip install accelerate
+```
+
+> 建议 Python ≥ 3.9，`torch` 版本与本机 CUDA/MPS 环境匹配。
+
+### 2) 保存脚本
+将你提供的代码保存为 `lesson1/01_sft_basics/sft_theory_notebook.py`（文件名可自定）。
+
+### 3) 一键运行
+```bash
+python lesson1/01_sft_basics/sft_theory_notebook.py
+```
+脚本会：
+1. 先以 **Instruction Tuning** 数据格式训练与评估一次；
+2. 再切换为 **传统 SFT** 文本拼接格式训练与评估一次；
+3. 在日志中打印二者的 `eval_loss` 对比。
+
+---
+
+## 脚本总体流程
+
+1. **构造数据集**：根据 `FinetuneConfig.instruction_mode` 决定采用 *指令格式* 还是 *SFT 拼接格式*。
+2. **分词与张量化**：调用 `tokenize()` 将文本批量编码为定长序列。
+3. **加载模型**：`AutoModelForCausalLM.from_pretrained(config.model_name)`。
+4. **训练器**：配置 `TrainingArguments` 与 `Trainer`，执行一次最小化的训练与评估。
+5. **对比指标**：输出两种格式的 `eval_loss`，演示格式差异对学习效果的影响。
+
+---
+
+## 函数与类文档
+
+### `FinetuneConfig`
+
+```python
+@dataclass
+class FinetuneConfig:
+    model_name: str = "Qwen/Qwen3-4b"
+    output_dir: Path = Path("./outputs/sft_basics")
+    max_steps: int = 30
+    learning_rate: float = 5e-5
+    batch_size: int = 2
+    warmup_steps: int = 3
+    instruction_mode: bool = True
+```
+**说明**：微调超参数与运行选项。
+
+- **`model_name`**：Hugging Face 上的 Causal LM 模型名称或本地路径。示例：`"Qwen/Qwen3-4b"`。
+- **`output_dir`**：训练输出目录（权重、日志、事件文件等）。
+- **`max_steps`**：训练最大 step 数；教学演示设置较小值便于快速结束。
+- **`learning_rate`**：AdamW 学习率。
+- **`batch_size`**：`per_device_train_batch_size`。
+- **`warmup_steps`**：学习率预热步数，缓解初期不稳定。
+- **`instruction_mode`**：
+  - `True`：采用 **Instruction Tuning** 的 *指令+输入+回答* 三段式格式；
+  - `False`：采用 **传统 SFT** 的 *问答拼接* 两段式格式。
+
+---
+
+### `EXAMPLE_PAIRS`
+
+```python
+EXAMPLE_PAIRS: List[Dict[str, str]] = [
+    {"instruction": "...", "input": "...", "output": "..."},
+    ...
+]
+```
+**说明**：少量伪造的教学数据，用于可复现实验。你可以自由添加更多条目。
+
+- 字段含义：
+  - **`instruction`**：任务指令（如“请概括下面的段落”）；
+  - **`input`**：原始输入内容；
+  - **`output`**：理想答案。
+
+---
+
+### `build_dataset`
+
+```python
+def build_dataset(config: FinetuneConfig) -> Dataset:
+    """根据配置生成 SFT 或指令微调数据集。"""
+```
+**功能**：根据 `instruction_mode` 生成对应格式的纯文本数据集（`datasets.Dataset`）。
+
+- 当 `instruction_mode=True`（Instruction Tuning）：每条样本会格式化为：
+  ```text
+  指令：{instruction}
+  输入：{input}
+  回答：{output}
+  ```
+- 当 `instruction_mode=False`（传统 SFT）：每条样本会格式化为：
+  ```text
+  问题：{input}
+  回答：{output}
+  ```
+
+**返回值**：`Dataset`，单列 `text`。
+
+**注意**：该函数**不涉及**模板中的特殊标记（如 `<|system|>`、`<|user|>`、`<|assistant|>`）。教学演示力求最小化；生产中建议引入**一致的对话模板**与**role 标记**以提升泛化。
+
+---
+
+### `tokenize`
+
+```python
+def tokenize(dataset: Dataset, tokenizer: AutoTokenizer) -> Dataset:
+    """对文本执行分词，截断到 512 token。"""
+```
+**功能**：将 `text` 列批量编码为 token 序列，固定 `max_length=512` 并 `padding="max_length"`。
+
+- **输入**：
+  - `dataset`：包含 `text` 列的数据集；
+  - `tokenizer`：与 `model_name` 匹配的分词器。
+- **处理**：
+  - 截断：超长序列将被**截断**至 512 token；
+  - 填充：不足 512 的序列将被右侧**填充**至定长；
+  - 列移除：去掉原始 `text` 列，只保留 `input_ids`、`attention_mask` 等。
+- **返回值**：张量化后的 `Dataset`。
+
+**实现要点**：
+- 主程序中若 `tokenizer.pad_token_id is None`，会将 `pad_token` 对齐为 `eos_token`，避免 `DataCollatorForLanguageModeling` 在无 `pad_token` 时出错。
+
+---
+
+### `run_training`
+
+```python
+def run_training(config: FinetuneConfig) -> Dict[str, float]:
+    """执行一次最小化监督微调流程。"""
+```
+**功能**：完成一次从**建库 → 分词 → 加载模型 → 训练 → 评估**的端到端流程。
+
+- **关键步骤**：
+  1. 加载分词器并保证 `pad_token` 就绪；
+  2. 基于配置构造数据集并分词；
+  3. 加载 `AutoModelForCausalLM`；
+  4. 构造 `DataCollatorForLanguageModeling(tokenizer, mlm=False)`：
+     - `mlm=False` 意味着**因果语言模型**目标（不是 BERT 式 MLM）；
+     - collator 会将 **padding 位置的标签置为 `-100`**，从而在损失计算中**屏蔽**这些位置；
+  5. 设置 `TrainingArguments`（小步数、适合教学）；
+  6. 初始化 `Trainer` 并调用 `train()`；
+  7. 用 `trainer.evaluate()` 返回 `metrics`（如 `eval_loss`）。
+
+- **返回值**：`Dict[str, float]`，典型字段：
+  - `eval_loss`：评估集/训练集上的平均交叉熵（如果未显式区分验证集，则为对训练数据的 `evaluate` 结果）。
+
+---
+
+### 入口主程序
+
+```python
+if __name__ == "__main__":
+    config = FinetuneConfig()
+    config.output_dir.mkdir(parents=True, exist_ok=True)
+
+    # 先运行指令微调格式
+    instruction_metrics = run_training(config)
+
+    # 再运行传统 SFT 格式做对比
+    config.instruction_mode = False
+    sft_metrics = run_training(config)
+
+    LOGGER.info(
+        "两种格式的损失对比：instruction=%.4f, sft=%.4f",
+        instruction_metrics["eval_loss"],
+        sft_metrics["eval_loss"],
+    )
+```
+**说明**：固定顺序跑两次，便于直观对比不同数据格式的 `eval_loss`。
+
+---
+
+## 数学原理与损失函数
+
+### 自回归语言模型目标
+
+对因果语言模型（Causal LM），给定输入 token 序列 \(x_{1:T}\)，模型学习条件分布
 $$
-\mathcal{L}_{\text{SFT}} = - \sum_{t=1}^{T} \log p_\theta(y_t \mid y_{<t}, x),
+p_\theta(x_{1:T})=\prod_{t=1}^{T} p_\theta(x_t \mid x_{<t}).
 $$
 
-其中 $x$ 为输入文本，$y_t$ 为第 $t$ 个目标 token。指令微调在输入序列中显式引入 `instruction` 字段，通过模板化拼接让模型学习对齐的指令遵循行为。本脚本以 Qwen 系列模型为例，演示两种格式对损失的影响。
-
-## 代码结构解析
-- `FinetuneConfig`：使用 `@dataclass` 定义的超参数集合，包含模型名称、学习率、步数等配置，并提供 `from_instruction()` 辅助方法快速切换训练模式。
-- `EXAMPLE_PAIRS`：用于教学的最小标注数据集，覆盖摘要与计划编写两类任务，是后续构建 `datasets.Dataset` 的核心样本来源。
-- `build_dataset`：根据 `instruction_mode` 参数决定是否拼接指令信息，输出结构为 `{"instruction", "input", "output"}` 或 `{"prompt", "response"}` 的数据集。
-- `tokenize`：调用 `AutoTokenizer` 进行分词、截断与填充，保障样本长度一致，并生成 `labels` 以匹配语言模型的自回归训练目标。
-- `run_training`：构建模型、数据整理器与 `Trainer`，执行训练与评估，最终比较两种模式的损失。
-
-## 使用指南
-1. **环境准备**：确保安装 `transformers`、`datasets`、`accelerate` 和 `peft` 等依赖，可执行
-   ```bash
-   pip install -U transformers datasets accelerate peft
-   ```
-2. **配置模型**：在脚本顶部的 `FinetuneConfig` 中，将 `model_name` 修改为本地可用的基座模型，如 `Qwen/Qwen1.5-0.5B`。
-3. **选择训练模式**：设置 `instruction_mode=True` 以启用指令微调模板，或设为 `False` 以执行传统 SFT。
-4. **运行脚本**：执行
-   ```bash
-   python lesson1/01_sft_basics/sft_theory_notebook.py
-   ```
-   程序会先后运行指令模式与纯 SFT 模式，并在控制台打印 `training_args.output_dir` 中保存的日志路径。
-5. **分析结果**：在控制台或保存的 `trainer_state.json` 中对比 `instruction_metrics` 与 `sft_metrics` 的 `eval_loss` 与 `perplexity`，判断模板化对对齐效果的影响。
-
-## 数学原理详解
-在自回归语言模型中，训练目标是最大化条件概率 $p_\theta(y \mid x)$，等价于最小化交叉熵损失：
-
+训练最小化**负对数似然（NLL）**，等价于逐位置交叉熵损失之和：
 $$
-\mathcal{L}_{\text{CE}}(\theta) = - \sum_{t=1}^{T} \log p_\theta(y_t \mid y_{<t}, x).
+\mathcal{L}_{\text{NLL}}(\theta)
+= - \sum_{t=1}^{T} \log p_\theta(x_t \mid x_{<t}).
 $$
 
-梯度通过反向传播更新参数：
+### 交叉熵损失与标签屏蔽
 
+由于采用定长 padding，需在损失中**忽略**填充位置：若将填充位置的标签设为 \(-100\)，则 PyTorch 的 `CrossEntropyLoss` 会自动**跳过**这些位置：
 $$
-\theta \leftarrow \theta - \eta \nabla_\theta \mathcal{L}_{\text{CE}}(\theta),
-$$
-
-其中学习率 $\eta$ 由 `FinetuneConfig.learning_rate` 控制。指令模式下，通过模板化将输入组织为
-
-$$
-\text{prompt} = \text{Instruction} \oplus \text{Input} \oplus \text{Response},
+\mathcal{L}(\theta)
+= - \sum_{t \in \mathcal{V}} \log p_\theta(x_t \mid x_{<t}),\quad
+\mathcal{V}=\{t \mid \text{label}_t \neq -100\}.
 $$
 
-从而在注意力机制中显式地为模型提供任务描述。若采用传统 SFT，仅拼接 `Input` 与 `Response`，则概率建模退化为 $p_\theta(y \mid x)$ 的标准形式。训练中 `Trainer` 会在每个批次上累积损失并根据优化器（如 AdamW）规则更新参数，AdamW 的一阶、二阶动量分别按照
+这正是 `DataCollatorForLanguageModeling(mlm=False)` 在 Causal LM 训练中的默认行为。
 
-$$
-\begin{aligned}
-m_t &= \beta_1 m_{t-1} + (1-\beta_1) \nabla_\theta \mathcal{L}_t, \\
-v_t &= \beta_2 v_{t-1} + (1-\beta_2) (\nabla_\theta \mathcal{L}_t)^2,
-\end{aligned}
-$$
+### SFT vs Instruction Tuning 的本质区别
 
-并使用权重衰减控制参数范数。上述过程在指令与非指令模式下共用，只是 `build_dataset` 决定了输入序列的拼接方式。
+- **SFT（两段式）**：仅将 *输入/问题* 与 *输出/答案* 简单拼接，学习到的是**从输入到输出的映射**：
+  $$
+  \text{prompt} = \text{"问题："} + x,\quad
+  \text{target} = y.
+  $$
 
-## 实验步骤
-1. 选定指令或非指令模式并运行脚本，观察日志中的 `loss` 曲线变化。
-2. 打开输出目录中的 `events.out.tfevents` 或 `trainer_state.json` 文件，可视化训练与验证损失，验证交叉熵最小化趋势。
-3. 修改 `max_steps`、`warmup_steps` 或 `per_device_train_batch_size`，重复实验验证学习率调度与批大小对收敛速度的影响。
+- **Instruction Tuning（三段式）**：显式提供**任务指令** `instruction`，模型不仅学习输入→输出的映射，还学习**如何遵循指令**：
+  $$
+  \text{prompt}=\text{"指令："}+i+\text{"输入："}+x+\text{"回答："},\quad
+  \text{target} = y.
+  $$
 
-## 思考题
-- 如果将 `instruction` 与 `input` 合并为单一字段，模型在处理多任务时是否会出现混淆？
-- 当样本数量增大时，应如何调整 `max_steps` 与 `warmup_steps`？
-- 如何在 GPU 环境下使用 `accelerate launch` 提升训练速度？
-- 能否通过在 `EXAMPLE_PAIRS` 中加入负面案例来模拟对抗式指令，从而观察损失曲线的变化？
+经验上，**一致、清晰、结构化的指令模板**通常能带来更好的泛化，尤其在多任务、多领域的小数据教学场景中。
+
+---
+
+## 运行与复现实验
+
+### CPU 直接运行
+```bash
+python sft_basics.py
+```
+- 运行结束后在 `outputs/sft_basics/` 下可看到训练产物与日志；
+- 终端将打印 Instruction vs SFT 的 `eval_loss` 对比。
+
+### GPU/多卡（可选）
+```bash
+accelerate launch --num_processes 1 sft_basics.py
+# 多卡示例（按需）
+accelerate launch --num_processes 4 sft_basics.py
+```
+> 使用前请先 `accelerate config` 完成环境检测与配置。
+
+### 输出与日志
+- 日志采用 `logging`，默认级别 `INFO`；
+- 关键日志：数据格式选择、训练开始/结束、`eval_loss`。
+
+---
+
+## 常见问题排查
+
+1. **`pad_token_id is None` 报错或 Loss 异常**
+   - 处理：主程序已自动将 `pad_token = eos_token`。若仍异常，检查分词器与模型是否完全匹配。
+
+2. **显存不足 / 内存不足**
+   - 处理：减小 `batch_size`、`max_length`、`max_steps`；或切换更小的 `model_name`。
+
+3. **`DataCollatorForLanguageModeling` 行为不符合预期**
+   - 确认 `mlm=False`（必须）。若希望更细粒度的 label 掩码，可自定义 collator。
+
+4. **收敛过快/无差异**
+   - 该脚本是**最小教学版**，`max_steps` 很小、样本很少，差异可能不明显。可：
+     - 增加 `EXAMPLE_PAIRS` 数量；
+     - 提高 `max_steps`；
+     - 引入更规范的指令模板或系统提示。
+
+5. **评估集与训练集未区分**
+   - 该脚本用训练数据直接调用 `evaluate()` 仅为演示；实际项目应切分 `train/valid`。
+
+---
+
+## 扩展建议
+
+- **引入模板**：加入角色标记（如 `<|system|> / <|user|> / <|assistant|>`）与统一 Prompt 模板。
+- **加入验证集**：`train_test_split` 划分验证集，监控早停与泛化。
+- **LoRA/QLoRA**：以低资源微调更多参数高效模型。
+- **指令多样性**：扩展不同任务类型（改写、摘要、分类、结构化抽取等）。
+- **评测指标**：除 `eval_loss` 外，增加任务相关指标（BLEU/ROUGE/准确率等）。
+
+---
+
+## 许可证
+
+若无特别声明，沿用上游模型与数据集的原始许可证；示例脚本本身可按教学用途自由修改与再分发（请在文档中保留来源与致谢）。
