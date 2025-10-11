@@ -19,7 +19,7 @@ from transformers import (
 )
 import torch.nn as nn 
 # --- 常量定义 ---
-DEFAULT_MODEL_NAME = "Qwen/Qwen3-0.6b" # 推荐使用 Instruct 版本
+DEFAULT_MODEL_NAME = "Qwen/Qwen3-0.6b" 
 DEFAULT_DATASET = "lvwerra/stack-exchange-paired"
 
 
